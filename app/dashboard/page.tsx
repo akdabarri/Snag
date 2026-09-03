@@ -10,9 +10,9 @@ import {
   Star, Gift, Home, Map, Trophy, User, Coins, Clock, Palette, ShoppingCart, Target, Zap, Image as ImageIcon
 } from "lucide-react";
 
-function ApiIcon({ className }: { className?: string }) {
+function ApiIcon({ className, style }: { className?: string; style?: React.CSSProperties }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" className={className} style={style} aria-hidden="true">
       <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
     </svg>
   );
@@ -122,7 +122,7 @@ export default function DashboardPage() {
     }
 
     const savedProgress = localStorage.getItem("snag_completed_levels");
-    const savedParsed = savedProgress ? JSON.parse(savedProgress) : [];
+    const savedParsed: string[] = savedProgress ? JSON.parse(savedProgress) : [];
     setCompletedLevels([...new Set(savedParsed)]);
 
     const savedHearts = localStorage.getItem("snag_student_hearts");
@@ -251,7 +251,6 @@ export default function DashboardPage() {
     }
   };
 
-  // TOMBOL CHEAT DOSEN: MEMBUKA SEMUA LEVEL
   const unlockAllLevels = () => {
     if (window.confirm("Bypass: Buka semua level untuk pengujian?")) {
       const allLevelIds = UNIT_DATA.flatMap(u => u.levels.map(l => l.id));
@@ -261,9 +260,8 @@ export default function DashboardPage() {
     }
   };
 
-  // TOMBOL CHEAT DOSEN: RESET PERMAINAN
   const resetProgress = () => {
-    if (window.confirm("Yakin ingin menghapus seluruh progres permainan dan kembali ke awal? (Sangat berguna untuk diulang saat presentasi LPJ)")) {
+    if (window.confirm("Yakin ingin menghapus seluruh progres permainan dan kembali ke awal?")) {
       setCompletedLevels([]);
       setHearts(5);
       setCoins(150);
@@ -274,7 +272,7 @@ export default function DashboardPage() {
       localStorage.removeItem("snag_regen_start");
       localStorage.removeItem("snag_avatar_image");
       alert("Data direset! Anda sekarang kembali sebagai pemain baru di Level 1.");
-      window.location.reload(); // Memuat ulang tampilan secara total
+      window.location.reload(); 
     }
   };
 
@@ -338,12 +336,12 @@ export default function DashboardPage() {
               </div>
             </div>
             
-            {/* AVATAR NAVBAR */}
+            {/* AVATAR NAVBAR (DIPERBAIKI ZOOM NYA) */}
             <div className="relative ml-2">
               <div onClick={() => setIsProfileOpen(!isProfileOpen)} className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity">
-                <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-black text-xl shadow-md border-2 border-white transition-all duration-500 bg-amber-500 overflow-hidden">
+                <div className="w-12 h-12 rounded-full flex items-center justify-center text-slate-400 font-black text-xl shadow-md border-2 border-white transition-all duration-500 bg-slate-100 overflow-hidden">
                   {avatarImage ? (
-                    <img src={avatarImage} alt="Avatar Profile" className="w-full h-full object-cover" />
+                    <img src={avatarImage} alt="Avatar Profile" className="w-full h-full object-contain scale-[0.85]" />
                   ) : (
                     studentInitial
                   )}
@@ -372,7 +370,7 @@ export default function DashboardPage() {
         {/* TAB 1: BERANDA */}
         {activeTab === "beranda" && (
           <div className="space-y-6 animate-in slide-in-from-left-8 duration-300">
-            <div className="bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-100 rounded-[2rem] p-8 md:p-10 flex flex-col md:flex-row items-center justify-between shadow-sm relative overflow-hidden">
+            <div className="bg-linear-to-r from-emerald-50 to-green-50 border border-emerald-100 rounded-[2rem] p-8 md:p-10 flex flex-col md:flex-row items-center justify-between shadow-sm relative overflow-hidden">
               <div className="z-10 text-center md:text-left mb-8 md:mb-0">
                 <h1 className="text-4xl md:text-5xl font-black text-slate-800 mb-3">Selamat Datang, {studentName}!</h1>
                 <p className="text-slate-600 text-lg mb-6">Pusat komando pembelajaran logika Anda.</p>
@@ -575,11 +573,12 @@ export default function DashboardPage() {
               
               {/* KARTU PROFIL KIRI */}
               <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col items-center text-center relative overflow-hidden h-fit">
-                <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-sky-50 to-white"></div>
+                <div className="absolute top-0 left-0 w-full h-32 bg-linear-to-b from-sky-50 to-white"></div>
                 
-                <div className="w-32 h-32 rounded-full flex items-center justify-center text-white font-black text-6xl shadow-xl mb-6 transition-all duration-500 border-4 border-white ring-4 ring-slate-100 bg-amber-500 overflow-hidden relative z-10">
+                {/* AVATAR PROFIL KIRI (DIPERBAIKI ZOOM NYA) */}
+                <div className="w-32 h-32 rounded-full flex items-center justify-center text-slate-400 font-black text-6xl shadow-xl mb-6 transition-all duration-500 border-4 border-white ring-4 ring-slate-100 bg-slate-100 overflow-hidden relative z-10">
                   {avatarImage ? (
-                    <img src={avatarImage} alt="Avatar Profile" className="w-full h-full object-cover bg-white" />
+                    <img src={avatarImage} alt="Avatar Profile" className="w-full h-full object-contain scale-[0.85]" />
                   ) : (
                     studentInitial
                   )}
