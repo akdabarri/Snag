@@ -10,14 +10,21 @@ import {
   Users, 
   Brain, 
   Clock, 
-  MousePointerClick 
+  MousePointerClick,
+  BarChart as BarChartIcon
 } from "lucide-react";
+
+// Mengimpor library visualisasi tingkat industri
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
+  ComposedChart, Line, Legend, Area, RadialBarChart, RadialBar, PolarAngleAxis
+} from 'recharts';
 
 interface TelemetryLog {
   id: string;
-  user_id: string;          // Disinkronkan dengan skema tabel baru
+  user_id: string;
   student_name: string;
-  question_id: string;      // Disinkronkan dengan skema tabel baru
+  question_id: string;
   level_id: string;
   hesitation_time: number;
   scaffolding_clicks: number;
@@ -35,18 +42,16 @@ export default function AnalyticsPage() {
     avgHints: 0,
   });
 
-  const [ctScores, setCtScores] = useState({
-    decomposition: 75,
-    pattern: 60,
-    algorithmic: 70,
-  });
+  // State untuk Data Visualisasi Grafik
+  const [chartData, setChartData] = useState<any[]>([]);
+  const [radialData, setRadialData] = useState<any[]>([]);
 
   useEffect(() => {
     async function fetchAnalyticsData() {
       try {
         setLoading(true);
 
-        // AMBIL DATA DARI TABEL TELEMETRY_LOGS YANG BARU
+        // Menarik payload telemetri real-time dari Supabase
         const { data: telemetryData, error } = await supabase
           .from("telemetry_logs") 
           .select("*")
@@ -58,15 +63,9 @@ export default function AnalyticsPage() {
           setLogs(telemetryData);
 
           const totalRecords = telemetryData.length;
-          
-          // Hitung total siswa unik berdasarkan user_id
           const uniqueStudents = new Set(telemetryData.map(item => item.user_id)).size;
-          
-          // Hitung rata-rata hesitation time
           const totalHesitation = telemetryData.reduce((acc, curr) => acc + (curr.hesitation_time || 0), 0);
           const avgHesitationSec = (totalHesitation / totalRecords).toFixed(1);
-
-          // Hitung rata-rata scaffolding clicks
           const totalClicks = telemetryData.reduce((acc, curr) => acc + (curr.scaffolding_clicks || 0), 0);
           const avgClicksPerSoal = (totalClicks / totalRecords).toFixed(1);
 
@@ -76,21 +75,53 @@ export default function AnalyticsPage() {
             avgHints: parseFloat(avgClicksPerSoal),
           });
 
-          // LOGIKA PROFILING CT SISWA BERDASARKAN QUESTION_ID / LEVEL_ID
-          const correctDecomp = telemetryData.filter(l => l.is_correct && (l.question_id?.includes("counting") || l.level_id?.includes("counting"))).length;
-          const totalDecomp = telemetryData.filter(l => l.question_id?.includes("counting") || l.level_id?.includes("counting")).length || 1;
+          // PENGOLAHAN DATA UNTUK GRAFIK (DATA AGREGASI PER LEVEL)
+          const levelMap: Record<string, any> = {};
           
-          const correctPattern = telemetryData.filter(l => l.is_correct && (l.question_id?.includes("pattern") || l.level_id?.includes("pattern"))).length;
-          const totalPattern = telemetryData.filter(l => l.question_id?.includes("pattern") || l.level_id?.includes("pattern")).length || 1;
+          let decompSuccess = 0, decompTotal = 0;
+          let patternSuccess = 0, patternTotal = 0;
+          let algoSuccess = 0, algoTotal = 0;
 
-          const correctAlgo = telemetryData.filter(l => l.is_correct && (l.question_id?.includes("algo") || l.level_id?.includes("algo"))).length;
-          const totalAlgo = telemetryData.filter(l => l.question_id?.includes("algo") || l.level_id?.includes("algo")).length || 1;
+          telemetryData.forEach((log) => {
+            // Pengolahan Grafik Batang Kombinasi
+            const level = log.level_id || "Uncategorized";
+            if (!levelMap[level]) {
+              levelMap[level] = { name: level, totalAttempts: 0, avgHesitation: 0, hintsUsed: 0, errorRate: 0 };
+            }
+            levelMap[level].totalAttempts += 1;
+            levelMap[level].avgHesitation += log.hesitation_time || 0;
+            levelMap[level].hintsUsed += log.scaffolding_clicks || 0;
+            if (!log.is_correct) levelMap[level].errorRate += 1;
 
-          setCtScores({
-            decomposition: Math.round((correctDecomp / totalDecomp) * 100) || 75,
-            pattern: Math.round((correctPattern / totalPattern) * 100) || 60,
-            algorithmic: Math.round((correctAlgo / totalAlgo) * 100) || 70,
+            // Pengolahan CT Profiling (Grafik Radial)
+            if (level.includes("counting") || log.question_id?.includes("counting")) {
+              decompTotal++;
+              if (log.is_correct) decompSuccess++;
+            } else if (level.includes("pattern") || log.question_id?.includes("pattern")) {
+              patternTotal++;
+              if (log.is_correct) patternSuccess++;
+            } else {
+              algoTotal++;
+              if (log.is_correct) algoSuccess++;
+            }
           });
+
+          // Finalisasi Array Grafik
+          const processedChartData = Object.values(levelMap).map(item => ({
+            name: item.name.replace("unit-", "Lvl "),
+            WaktuRagu: Math.round(item.avgHesitation / item.totalAttempts),
+            BantuanAI: item.hintsUsed,
+            Kesalahan: Math.round((item.errorRate / item.totalAttempts) * 100) // Persentase salah
+          })).slice(0, 7); // Ambil 7 level terbaru/paling aktif
+
+          setChartData(processedChartData);
+
+          // Finalisasi Array Radial (CT Scores)
+          setRadialData([
+            { name: 'Dekomposisi', score: Math.round((decompSuccess / (decompTotal || 1)) * 100), fill: '#0ea5e9' },
+            { name: 'Pola Komputasi', score: Math.round((patternSuccess / (patternTotal || 1)) * 100), fill: '#8b5cf6' },
+            { name: 'Logika Algoritma', score: Math.round((algoSuccess / (algoTotal || 1)) * 100), fill: '#10b981' }
+          ]);
         }
       } catch (err) {
         console.error("Gagal menarik data telemetri analitik dari Supabase:", err);
@@ -106,7 +137,6 @@ export default function AnalyticsPage() {
     if (logs.length === 0) return;
 
     const headers = ["ID Log", "User ID", "Nama Siswa", "ID Soal", "Waktu Ragu (detik)", "Klik Scaffolding AI", "Status Jawaban", "Waktu Simpan\n"];
-    
     const csvRows = logs.map(log => [
       log.id,
       log.user_id,
@@ -123,24 +153,18 @@ export default function AnalyticsPage() {
     
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `Dataset_Riset_SNAG_${new Date().toISOString().slice(0,10)}.csv`);
+    link.setAttribute("download", `Dataset_SNAG_Telemetry_${new Date().toISOString().slice(0,10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
-
-  const CT_PATTERNS = [
-    { label: "Dekomposisi (Memecah Masalah)", score: ctScores.decomposition, color: "bg-sky-500" },
-    { label: "Pengenalan Pola", score: ctScores.pattern, color: "bg-violet-500" },
-    { label: "Berpikir Algoritmis", score: ctScores.algorithmic, color: "bg-emerald-500" },
-  ];
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans pb-12">
       
       {/* ── Top Navigation ─────────────────────────────────────────────── */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link 
               href="/" 
@@ -151,8 +175,8 @@ export default function AnalyticsPage() {
             </Link>
             <div className="h-6 w-px bg-slate-200" />
             <h1 className="font-bold text-slate-800 text-lg flex items-center gap-2">
-              <Brain className="w-5 h-5 text-sky-500" />
-              Dasbor Peneliti (Learning Analytics)
+              <BarChartIcon className="w-5 h-5 text-sky-500" />
+              Educator Telemetry Dashboard
             </h1>
           </div>
           
@@ -168,7 +192,7 @@ export default function AnalyticsPage() {
       </header>
 
       {/* ── Main Content ────────────────────────────────────────────────── */}
-      <main className="max-w-6xl mx-auto px-6 mt-8 space-y-8">
+      <main className="max-w-7xl mx-auto px-6 mt-8 space-y-6">
         
         {/* KPI Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -177,7 +201,7 @@ export default function AnalyticsPage() {
               <Users className="w-6 h-6" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-slate-500 mb-1">Total Sampel Siswa</p>
+              <p className="text-sm font-semibold text-slate-500 mb-1">Total Populasi Siswa</p>
               <h2 className="text-3xl font-black text-slate-800">{loading ? "..." : metrics.totalStudents}</h2>
             </div>
           </div>
@@ -187,17 +211,17 @@ export default function AnalyticsPage() {
               <Clock className="w-6 h-6" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-slate-500 mb-1">Rata-rata Hesitation Time</p>
+              <p className="text-sm font-semibold text-slate-500 mb-1">Rata-rata Waktu Ragu (Hesitation)</p>
               <h2 className="text-3xl font-black text-slate-800">{loading ? "..." : metrics.avgHesitation}</h2>
             </div>
           </div>
 
           <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex items-start gap-4">
-            <div className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl">
+            <div className="p-3 bg-fuchsia-50 text-fuchsia-600 rounded-2xl">
               <MousePointerClick className="w-6 h-6" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-slate-500 mb-1">Rasio Scaffolding AI</p>
+              <p className="text-sm font-semibold text-slate-500 mb-1">Intensitas Penggunaan AI</p>
               <h2 className="text-3xl font-black text-slate-800">
                 {loading ? "..." : metrics.avgHints} <span className="text-base font-medium text-slate-400">klik/soal</span>
               </h2>
@@ -205,110 +229,163 @@ export default function AnalyticsPage() {
           </div>
         </div>
 
+        {/* ── Visualisasi Data (Recharts) ─────────────────────────────────── */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
-          {/* Recent Telemetry Logs (Table) */}
-          <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-              <h3 className="font-bold text-slate-800">Log Telemetri Terbaru</h3>
-              <span className="text-xs font-semibold text-sky-600 bg-sky-100 px-2.5 py-1 rounded-full animate-pulse">Real-time DB</span>
+          {/* Main Chart: AI Usage vs Error Rate */}
+          <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-200 shadow-sm flex flex-col p-6">
+            <div className="mb-6">
+              <h3 className="font-bold text-slate-800 text-lg">Distribusi Intervensi AI vs Rasio Kesalahan</h3>
+              <p className="text-sm text-slate-500 mt-1">Korelasi antara penggunaan Scaffolding AI dan tingkat kesulitan level (Data Riil)</p>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-slate-50 text-slate-500 border-b border-slate-100">
-                  <tr>
-                    <th className="px-6 py-4 font-semibold">Siswa</th>
-                    <th className="px-6 py-4 font-semibold">Hesitation (Waktu Ragu)</th>
-                    <th className="px-6 py-4 font-semibold">Bantuan AI</th>
-                    <th className="px-6 py-4 font-semibold">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {loading ? (
-                    <tr>
-                      <td colSpan={4} className="px-6 py-12 text-center font-semibold text-slate-400">
-                        Sinkronisasi data riwayat belajar siswa...
-                      </td>
-                    </tr>
-                  ) : logs.length === 0 ? (
-                    <tr>
-                      <td colSpan={4} className="px-6 py-12 text-center font-semibold text-slate-400">
-                        Belum ada aktivitas belajar yang terekam di database.
-                      </td>
-                    </tr>
-                  ) : (
-                    logs.slice(0, 10).map((log) => (
-                      <tr key={log.id} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="px-6 py-4">
-                          <p className="font-bold text-slate-700">{log.student_name || "Siswa Anonim"}</p>
-                          <p className="text-xs text-slate-400">
-                            {new Date(log.created_at).toLocaleTimeString("id-ID", { hour: '2-digit', minute: '2-digit' })} · {log.question_id || log.level_id}
-                          </p>
-                        </td>
-                        <td className="px-6 py-4 font-mono text-slate-600">{log.hesitation_time?.toFixed(1) ?? 0}s</td>
-                        <td className="px-6 py-4">
-                          <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${log.scaffolding_clicks > 0 ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-400'}`}>
-                            {log.scaffolding_clicks ?? 0}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          {log.is_correct ? (
-                            <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
-                              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Benar
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1.5 text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2.5 py-1 rounded-lg">
-                              <div className="w-1.5 h-1.5 rounded-full bg-rose-500" /> Salah
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+            <div className="h-72 w-full">
+              {loading || chartData.length === 0 ? (
+                <div className="w-full h-full bg-slate-50 animate-pulse rounded-2xl border border-dashed border-slate-200 flex items-center justify-center text-slate-400 font-medium">Memuat Visualisasi Data...</div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
+                    <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
+                    <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
+                    <RechartsTooltip 
+                      contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}
+                      cursor={{ fill: '#f8fafc' }}
+                    />
+                    <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '20px' }} />
+                    <Bar yAxisId="left" dataKey="Kesalahan" name="Rasio Kegagalan (%)" barSize={30} fill="#f43f5e" radius={[6, 6, 0, 0]} />
+                    <Line yAxisId="right" type="monotone" dataKey="BantuanAI" name="Total Klik AI" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </div>
 
-          {/* CT Profiling Diagnostic */}
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm flex flex-col">
-            <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/50">
-              <h3 className="font-bold text-slate-800">Profil Computational Thinking</h3>
-              <p className="text-xs text-slate-500 mt-1">Berdasarkan pola keberhasilan siswa</p>
+          {/* Radial Chart: CT Profiling */}
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm flex flex-col p-6">
+             <div className="mb-2 text-center">
+              <h3 className="font-bold text-slate-800 text-lg">Agregasi Kognitif CT</h3>
+              <p className="text-xs text-slate-500 mt-1">Tingkat keberhasilan berdasarkan taksonomi</p>
             </div>
-            <div className="p-6 flex-1 flex flex-col gap-6">
-              {UNIT_DATA_MAP_OR_MOCK(CT_PATTERNS)}
-              
-              <div className="mt-auto pt-6 border-t border-slate-100">
-                <div className="bg-sky-50 rounded-2xl p-4 flex gap-3 border border-sky-100">
-                  <Brain className="w-5 h-5 text-sky-500 flex-shrink-0" />
-                  <p className="text-xs font-medium text-sky-800 leading-relaxed">
-                    Dasbor mengukur performa CT secara agregat kelompok. Anda bisa mengunduh file berkas mentah dengan mengklik tombol ekspor di atas untuk pengolahan statistik lanjutan (SPSS/Excel).
-                  </p>
-                </div>
-              </div>
+            <div className="h-64 w-full flex items-center justify-center relative">
+              {loading || radialData.length === 0 ? (
+                 <div className="w-48 h-48 rounded-full bg-slate-50 animate-pulse border-8 border-slate-100 flex items-center justify-center text-xs text-slate-400 font-medium text-center p-4">Kalkulasi Psikometrik...</div>
+              ) : (
+                <>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RadialBarChart cx="50%" cy="50%" innerRadius="30%" outerRadius="100%" barSize={16} data={radialData} startAngle={90} endAngle={-270}>
+                      <PolarAngleAxis type="number" domain={[0, 100]} angleAxisId={0} tick={false} />
+                      <RadialBar 
+                        background={{ fill: '#f1f5f9' }} 
+                        dataKey="score" 
+                        cornerRadius={10} 
+                      />
+                    </RadialBarChart>
+                  </ResponsiveContainer>
+                  {/* Legend Overlay Custom */}
+                  <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center">
+                     <Brain className="w-8 h-8 text-slate-300 mb-1" />
+                     <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">PROFIL</span>
+                  </div>
+                </>
+              )}
+            </div>
+            
+            {/* Custom Legend */}
+            <div className="mt-auto pt-4 flex flex-col gap-3">
+               {radialData.map((entry, index) => (
+                 <div key={index} className="flex items-center justify-between">
+                   <div className="flex items-center gap-2">
+                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.fill }} />
+                     <span className="text-sm font-semibold text-slate-600">{entry.name}</span>
+                   </div>
+                   <span className="text-sm font-black text-slate-800">{entry.score}%</span>
+                 </div>
+               ))}
             </div>
           </div>
-
         </div>
+
+        {/* ── Raw Data Table ──────────────────────────────────────────────── */}
+        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden mb-10">
+          <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+            <div>
+              <h3 className="font-bold text-slate-800">Log Resolusi Kognitif (Raw Data)</h3>
+              <p className="text-xs text-slate-500 mt-0.5">Jejak digital interaksi individual yang disinkronisasi dari Supabase</p>
+            </div>
+            <span className="text-[10px] font-black tracking-widest uppercase text-emerald-600 bg-emerald-100 px-3 py-1.5 rounded-full animate-pulse border border-emerald-200">Live Sync</span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-slate-50 text-slate-500 border-b border-slate-100 uppercase tracking-wider text-[10px]">
+                <tr>
+                  <th className="px-6 py-4 font-black">Identitas / Waktu</th>
+                  <th className="px-6 py-4 font-black">Quest Level</th>
+                  <th className="px-6 py-4 font-black">Hesitation Time</th>
+                  <th className="px-6 py-4 font-black text-center">AI Interventions</th>
+                  <th className="px-6 py-4 font-black">Final State</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {loading ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-16 text-center font-semibold text-slate-400">
+                      Mengekstraksi baris relasional dari basis data cloud...
+                    </td>
+                  </tr>
+                ) : logs.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-16 text-center font-semibold text-slate-400">
+                      Tidak ada aktivitas telemetri yang terdeteksi.
+                    </td>
+                  </tr>
+                ) : (
+                  logs.slice(0, 8).map((log) => (
+                    <tr key={log.id} className="hover:bg-sky-50/30 transition-colors">
+                      <td className="px-6 py-4">
+                        <p className="font-bold text-slate-700">{log.student_name || "Guest User"}</p>
+                        <p className="text-xs font-mono text-slate-400 mt-0.5">
+                          {new Date(log.created_at).toLocaleTimeString("id-ID", { hour: '2-digit', minute: '2-digit', second: '2-digit' })} WIB
+                        </p>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="bg-slate-100 text-slate-600 font-mono text-[10px] font-bold px-2 py-1 rounded-md border border-slate-200">
+                          {log.question_id || log.level_id}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                           <Clock className={`w-3.5 h-3.5 ${log.hesitation_time > 45 ? 'text-amber-500' : 'text-slate-400'}`} />
+                           <span className={`font-mono font-medium ${log.hesitation_time > 45 ? 'text-amber-600 font-bold' : 'text-slate-600'}`}>
+                             {log.hesitation_time?.toFixed(1) ?? 0} s
+                           </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <span className={`inline-flex items-center justify-center w-7 h-7 rounded-lg text-xs font-black shadow-sm ${log.scaffolding_clicks > 0 ? 'bg-fuchsia-100 text-fuchsia-700 border border-fuchsia-200' : 'bg-slate-50 text-slate-400 border border-slate-200'}`}>
+                          {log.scaffolding_clicks ?? 0}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        {log.is_correct ? (
+                          <div className="flex items-center gap-2 text-emerald-600 font-bold text-xs bg-emerald-50 w-fit px-3 py-1.5 rounded-full border border-emerald-100">
+                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Success
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 text-rose-600 font-bold text-xs bg-rose-50 w-fit px-3 py-1.5 rounded-full border border-rose-100">
+                            <div className="w-1.5 h-1.5 rounded-full bg-rose-500" /> Error
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
       </main>
     </div>
   );
-}
-
-function UNIT_DATA_MAP_OR_MOCK(patterns: any[]) {
-  return patterns.map((pattern, idx) => (
-    <div key={idx}>
-      <div className="flex justify-between text-sm mb-2">
-        <span className="font-semibold text-slate-700">{pattern.label}</span>
-        <span className="font-bold text-slate-900">{pattern.score}%</span>
-      </div>
-      <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
-        <div 
-          className={`h-full rounded-full ${pattern.color} transition-all duration-1000`}
-          style={{ width: `${pattern.score}%` }}
-        />
-      </div>
-    </div>
-  ));
 }
