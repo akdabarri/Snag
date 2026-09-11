@@ -2,119 +2,178 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, BookOpen, BarChart3 } from "lucide-react";
 
 export default function LandingPage() {
   return (
-    <div className="relative min-h-screen bg-slate-50 font-sans selection:bg-sky-200 selection:text-sky-900 overflow-x-hidden">
+    /* KUNCI MUTLAK LAYAR (fixed inset-0) AGAR TIDAK BISA SCROLL */
+    <div className="fixed inset-0 flex flex-col bg-[#E0F4FF] font-sans selection:bg-sky-200 selection:text-sky-900 overflow-hidden">
       
-      {/* ================= MODERN HERO BACKGROUND ================= */}
-      <div className="absolute inset-0 z-0 pointer-events-none">
-        {/* Pola Grid Halus */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#e2e8f0_1px,transparent_1px),linear-gradient(to_bottom,#e2e8f0_1px,transparent_1px)] bg-[size:32px_32px] opacity-50"></div>
-        {/* Efek Glow/Cahaya Halus di Latar */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-sky-200/40 rounded-full blur-[100px]"></div>
-        <div className="absolute bottom-0 right-0 w-[500px] h-[300px] bg-emerald-100/30 rounded-full blur-[100px]"></div>
+      {/* ================= BACKGROUND IMAGE (MEMENUHI LAYAR 100%) ================= */}
+      <div className="absolute inset-0 z-0 pointer-events-none w-full h-full">
+        {/* Gambar background akan melar menutupi seluruh layar (object-cover) */}
+        <img 
+          src="/images/bg-landing.webp" 
+          alt="Pemandangan Alam" 
+          className="w-full h-full object-cover object-center"
+          onError={(e) => {
+            e.currentTarget.style.display = 'none';
+          }}
+        />
+        {/* Gradien putih halus di bagian bawah agar kartu lebih terbaca */}
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-white/40 -z-10"></div>
       </div>
 
-      {/* ================= MAIN CONTENT ================= */}
-      <main className="relative z-10 min-h-[90vh] flex flex-col items-center justify-center p-6 md:p-12">
-        <div className="w-full max-w-4xl flex flex-col items-center animate-in fade-in slide-in-from-bottom-6 duration-1000">
-          
-          {/* Logo */}
-          <div className="mb-8">
-            <img 
-              src="/images/1.png" 
-              alt="Logo SNAG Platform" 
-              className="h-24 md:h-32 w-auto object-contain drop-shadow-sm hover:scale-105 transition-transform duration-500"
-              onError={(e) => {
-                e.currentTarget.style.display = 'none';
-              }}
-            />
-          </div>
+      {/* ================= HERO SECTION ================= */}
+      {/* Menggunakan flex-1 agar mengambil sisa ruang yang ada di antara atas dan kartu */}
+      <main className="relative z-10 flex-1 w-full max-w-7xl mx-auto px-6 lg:px-12 flex flex-col lg:flex-row items-center justify-center min-h-0 gap-4 lg:gap-12 pt-4 md:pt-8">
+        
+        {/* Teks Kiri */}
+        <div className="w-full lg:w-1/2 flex flex-col items-center lg:items-start text-center lg:text-left shrink-0 z-20">
+          {/* Menambahkan kelas 'text-outline' agar teks tidak nyaru */}
+          <h1 className="text-outline text-4xl md:text-5xl lg:text-[4rem] font-black text-[#1E293B] leading-[1.1] mb-4 tracking-tight">
+            Belajar Matematika<br/>
+            Jadi Lebih <span className="relative inline-block text-amber-500">
+              Seru!
+              <svg className="absolute w-full h-3 md:h-4 -bottom-1 left-0 text-amber-400 -z-10" viewBox="0 0 100 20" preserveAspectRatio="none">
+                <path d="M0 15 Q 50 0 100 15" fill="none" stroke="currentColor" strokeWidth="6" strokeLinecap="round" />
+              </svg>
+            </span>
+          </h1>
+          <p className="text-[#475569] text-sm md:text-base lg:text-lg font-bold max-w-lg leading-relaxed bg-white/60 px-4 py-2 rounded-2xl backdrop-blur-sm border border-white/50 shadow-sm mt-2">
+            Petualangan numerasi cerdas dengan AI, untuk melatih logika dan kemampuan berpikir secara menyenangkan.
+          </p>
+        </div>
 
-          <div className="text-center mb-12">
-            <h1 className="text-4xl md:text-5xl font-black text-slate-800 tracking-tight mb-4">
-              SNAG Platform
-            </h1>
-            <p className="text-slate-500 text-base md:text-lg max-w-2xl mx-auto leading-relaxed">
-              Smart Numeracy AI-Gamification. Mendorong batas berpikir komputasional melalui pendekatan analitik Sokratik.
-            </p>
-          </div>
-
-          {/* ROLE SELECTION CARDS */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
-            
-            {/* Kartu Portal Siswa */}
-            <Link 
-              href="/beranda" 
-              className="group relative bg-white p-8 rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-sky-300 transition-all duration-300 flex flex-col justify-between"
-            >
-              <div>
-                <div className="mb-5">
-                  <span className="inline-block px-3 py-1 bg-sky-50 text-sky-600 text-[10px] font-black uppercase tracking-widest rounded-full">
-                    Akses Peserta Didik
-                  </span>
-                </div>
-                <h2 className="text-2xl font-black text-slate-800 mb-3 group-hover:text-sky-600 transition-colors">
-                  Portal Siswa
-                </h2>
-                <p className="text-slate-500 text-sm leading-relaxed mb-8">
-                  Masuk ke jalur belajar interaktif, selesaikan tantangan logika, dan temukan cara baru memecahkan masalah.
-                </p>
-              </div>
-              <div className="flex items-center gap-2 text-sm font-bold text-sky-500">
-                Mulai Petualangan <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform duration-300" />
-              </div>
-            </Link>
-
-            {/* Kartu Portal Peneliti */}
-            <Link 
-              href="/analytics" 
-              className="group relative bg-white p-8 rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-emerald-300 transition-all duration-300 flex flex-col justify-between"
-            >
-              <div>
-                <div className="mb-5">
-                  <span className="inline-block px-3 py-1 bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase tracking-widest rounded-full">
-                    Akses Akademik
-                  </span>
-                </div>
-                <h2 className="text-2xl font-black text-slate-800 mb-3 group-hover:text-emerald-600 transition-colors">
-                  Dasbor Peneliti
-                </h2>
-                <p className="text-slate-500 text-sm leading-relaxed mb-8">
-                  Pantau metrik <span className="italic">Learning Analytics</span>, jejak interaksi AI, dan evaluasi performa siswa secara komprehensif.
-                </p>
-              </div>
-              <div className="flex items-center gap-2 text-sm font-bold text-emerald-500">
-                Lihat Analitik <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform duration-300" />
-              </div>
-            </Link>
-
-          </div>
+        {/* Gambar Logo SNAG Kanan (Digeser ke kiri menggunakan pr-12 dan xl:pr-24) */}
+        <div className="w-full lg:w-1/2 flex justify-center lg:justify-end items-center flex-1 min-h-0 lg:pr-12 xl:pr-24 z-10">
+          <img 
+            src="/images/1.png" 
+            alt="Logo SNAG" 
+            className="w-auto h-[25vh] md:h-[40vh] lg:h-[55vh] scale-110 lg:scale-125 object-contain drop-shadow-2xl animate-[breathe_4s_ease-in-out_infinite]" 
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+            }}
+          />
         </div>
       </main>
 
-      {/* ================= HUMBLE RESEARCHER SECTION ================= */}
-      <footer className="relative z-10 bg-white border-t border-slate-200 py-10 px-6">
-        <div className="max-w-3xl mx-auto text-center flex flex-col items-center">
-          <p className="text-[10px] font-black text-slate-400 tracking-widest uppercase mb-3">
-            Dikembangkan Oleh
-          </p>
-          <h3 className="text-base font-black text-slate-700 mb-1">
-            Tim Riset Kolaborasi UPI
-          </h3>
-          <p className="text-slate-500 text-xs font-medium mb-6">
-            Universitas Pendidikan Indonesia Kampus Purwakarta
-          </p>
+      {/* ================= CARDS SECTION ================= */}
+      {/* Menggunakan shrink-0 agar tidak menyusut, posisinya tepat di atas footer */}
+      <section className="relative z-30 w-full px-4 lg:px-12 flex justify-center pb-4 md:pb-6 shrink-0">
+        <div className="w-full max-w-5xl bg-white/80 backdrop-blur-xl p-3 md:p-5 lg:p-6 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.15)] border-[3px] border-white flex flex-col md:flex-row gap-3 md:gap-5">
           
-          {/* Watermark Kreator (Sangat Halus) */}
-          <p className="text-slate-300 text-[10px] font-medium tracking-wide">
-            — made by akda barri —
-          </p>
+          {/* Kartu Portal Siswa */}
+          <div className="flex-1 bg-[#F0F8FF] rounded-[1.5rem] p-5 flex flex-col relative overflow-hidden group border border-[#D6EFFF]">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-sky-200/30 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4"></div>
+            
+            <div className="flex items-start gap-3 mb-3 relative z-10">
+              <div className="w-12 h-12 rounded-xl bg-sky-500 text-white flex items-center justify-center shadow-lg shadow-sky-500/30 shrink-0">
+                <BookOpen className="w-6 h-6" />
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-xl md:text-2xl font-black text-[#1E3A8A] mb-1 truncate">Portal Siswa</h2>
+                <p className="text-xs md:text-sm font-medium text-slate-600 leading-relaxed pr-8 md:pr-12">
+                  Masuk ke jalur belajar interaktif, selesaikan tantangan logika, dan pecahkan masalah.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-auto pt-4 relative z-10">
+              <Link href="/beranda" className="inline-flex items-center gap-2 bg-sky-500 hover:bg-sky-600 text-white font-bold text-xs md:text-sm px-5 py-2.5 rounded-full transition-colors shadow-md shadow-sky-500/20 active:scale-95">
+                Mulai Petualangan <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+            
+            <img 
+               src="/images/icon-books-3d.webp" 
+               alt="Buku" 
+               className="absolute bottom-2 right-2 w-20 md:w-28 h-auto drop-shadow-xl group-hover:scale-110 transition-transform duration-500" 
+               onError={(e) => e.currentTarget.style.display = 'none'}
+            />
+          </div>
+
+          {/* Kartu Dasbor Peneliti */}
+          <div className="flex-1 bg-[#F0FDF4] rounded-[1.5rem] p-5 flex flex-col relative overflow-hidden group border border-[#DCFCE7]">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-200/30 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4"></div>
+            
+            <div className="flex items-start gap-3 mb-3 relative z-10">
+              <div className="w-12 h-12 rounded-xl bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-500/30 shrink-0">
+                <BarChart3 className="w-6 h-6" />
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-xl md:text-2xl font-black text-[#064E3B] mb-1 truncate">Dasbor Peneliti</h2>
+                <p className="text-xs md:text-sm font-medium text-slate-600 leading-relaxed pr-8 md:pr-12">
+                  Pantau metrik <span className="italic">Learning Analytics</span>, dan evaluasi performa siswa komprehensif.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-auto pt-4 relative z-10">
+              <Link href="/analytics" className="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs md:text-sm px-5 py-2.5 rounded-full transition-colors shadow-md shadow-emerald-500/20 active:scale-95">
+                Lihat Analitik <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+            
+            <img 
+               src="/images/icon-chart-3d.webp" 
+               alt="Analitik" 
+               className="absolute bottom-2 right-2 w-20 md:w-28 h-auto drop-shadow-xl group-hover:scale-110 transition-transform duration-500" 
+               onError={(e) => e.currentTarget.style.display = 'none'}
+            />
+          </div>
+
         </div>
+      </section>
+
+      {/* ================= HUMBLE RESEARCHER SECTION (SANGAT TIPIS) ================= */}
+      <footer className="relative z-10 bg-white/70 backdrop-blur-md border-t border-white py-2 px-6 shrink-0 flex flex-col sm:flex-row items-center justify-center sm:justify-between gap-1">
+        <div className="flex items-center gap-2 text-center sm:text-left">
+          <span className="text-[10px] md:text-xs font-black text-slate-500 uppercase tracking-wide">
+            Tim Riset Kolaborasi UPI Kampus Purwakarta
+          </span>
+        </div>
+        <p className="text-slate-400 text-[10px] md:text-xs font-medium tracking-wide">
+          — made by akda barri —
+        </p>
       </footer>
       
+      {/* Animasi & Text Stroke */}
+      <style jsx global>{`
+        @keyframes breathe {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-10px); }
+        }
+
+        /* Kelas khusus untuk memberikan Outline (Stroke) tebal pada teks agar tidak nyaru */
+        .text-outline {
+          text-shadow: 
+            -2px -2px 0 #FFF,
+             2px -2px 0 #FFF,
+            -2px  2px 0 #FFF,
+             2px  2px 0 #FFF,
+            -2px  0   0 #FFF,
+             2px  0   0 #FFF,
+             0   -2px 0 #FFF,
+             0    2px 0 #FFF,
+             0    6px 15px rgba(0,0,0,0.15);
+        }
+
+        @media (min-width: 768px) {
+          .text-outline {
+            text-shadow: 
+              -3px -3px 0 #FFF,
+               3px -3px 0 #FFF,
+              -3px  3px 0 #FFF,
+               3px  3px 0 #FFF,
+              -3px  0   0 #FFF,
+               3px  0   0 #FFF,
+               0   -3px 0 #FFF,
+               0    3px 0 #FFF,
+               0    8px 20px rgba(0,0,0,0.15);
+          }
+        }
+      `}</style>
     </div>
   );
 }
