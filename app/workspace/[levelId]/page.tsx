@@ -95,15 +95,7 @@ interface AnswerCardProps {
   onSelect: () => void;
 }
 
-function AnswerCard({
-  value,
-  label,
-  imageUrl,
-  selected,
-  disabled,
-  isCorrect,
-  onSelect,
-}: AnswerCardProps) {
+function AnswerCard({ value, label, imageUrl, selected, disabled, isCorrect, onSelect }: AnswerCardProps) {
   const getStyle = () => {
     if (!selected) return "border-slate-200 bg-white hover:border-sky-300 hover:shadow-md cursor-pointer";
     if (isCorrect === undefined) return "border-sky-400 bg-sky-50 shadow-md ring-2 ring-sky-200";
@@ -115,10 +107,10 @@ function AnswerCard({
     <button
       onClick={onSelect}
       disabled={disabled}
-      className={`w-full flex items-center gap-4 p-4 rounded-2xl border-2 text-left transition-all duration-200 group ${getStyle()}`}
+      className={`w-full flex items-center gap-3 md:gap-4 p-3 md:p-4 rounded-2xl border-2 text-left transition-all duration-200 group ${getStyle()}`}
     >
       <div
-        className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 font-black text-lg transition-colors duration-200
+        className={`w-10 h-10 md:w-11 md:h-11 rounded-xl flex items-center justify-center shrink-0 font-black text-base md:text-lg transition-colors duration-200
         ${selected && isCorrect === undefined ? "bg-sky-500 text-white" : ""}
         ${selected && isCorrect ? "bg-emerald-500 text-white" : ""}
         ${selected && isCorrect === false ? "bg-red-400 text-white" : ""}
@@ -127,15 +119,15 @@ function AnswerCard({
         {value}
       </div>
 
-      <div className="flex-1 flex flex-col justify-center">
+      <div className="flex-1 flex flex-col justify-center min-w-0">
         <span className="font-semibold text-sm text-slate-700">{label}</span>
         {imageUrl && (
-          <img src={imageUrl} alt={label} className="mt-2 w-auto h-20 object-contain rounded-md border border-slate-100" />
+          <img src={imageUrl} alt={label} className="mt-2 w-auto max-h-16 md:max-h-20 object-contain rounded-md border border-slate-100" />
         )}
       </div>
 
-      {selected && isCorrect === true && <CheckCircleIcon className="w-5 h-5 text-emerald-500" />}
-      {selected && isCorrect === false && <XCircleIcon className="w-5 h-5 text-red-400" />}
+      {selected && isCorrect === true && <CheckCircleIcon className="w-5 h-5 text-emerald-500 shrink-0" />}
+      {selected && isCorrect === false && <XCircleIcon className="w-5 h-5 text-red-400 shrink-0" />}
     </button>
   );
 }
@@ -150,7 +142,7 @@ function ScaffoldingIdle() {
       </div>
       <div>
         <h3 className="text-base font-bold text-slate-700 mb-1.5">Butuh bantuan logika?</h3>
-        <p className="text-sm text-slate-500 leading-relaxed max-w-xs">
+        <p className="text-sm text-slate-500 leading-relaxed max-w-xs mx-auto">
           Jika kamu merasa bingung, klik tombol petunjuk. AI akan membantumu memecah masalah ini secara bertahap.
         </p>
       </div>
@@ -162,9 +154,9 @@ function ScaffoldingIdle() {
 
 function ScaffoldStep({ number, title, children }: { number: number; title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-sky-100 bg-sky-50/40 p-3">
+    <div className="rounded-xl border border-sky-100 bg-sky-50/40 p-3 shadow-sm">
       <div className="flex items-center gap-2 mb-1">
-        <span className="w-5 h-5 rounded-full text-xs font-black flex items-center justify-center bg-sky-500 text-white">
+        <span className="w-5 h-5 rounded-full text-xs font-black flex items-center justify-center bg-sky-500 text-white shrink-0">
           {number}
         </span>
         <p className="text-xs font-bold text-sky-700">{title}</p>
@@ -180,7 +172,7 @@ export default function WorkspacePage() {
   const router = useRouter();
   const params = useParams();
 
-  // KODE ANTI-BOCOR PARAMETER URL (Aman apapun nama folder Anda: [id], [levelId], dll)
+  // Membaca Level ID 
   const rawParam = params?.levelId || params?.LevelID || params?.levelid || params?.id || Object.values(params || {})[0];
   const currentLevelId = (Array.isArray(rawParam) ? rawParam[0] : rawParam) as string;
   
@@ -199,11 +191,9 @@ export default function WorkspacePage() {
   const [activeStudentId, setActiveStudentId] = useState("00000000-0000-0000-0000-000000000000");
 
   useEffect(() => {
-    // Membaca ID Siswa
     const savedUid = localStorage.getItem("snag_user_id");
     if (savedUid) setActiveStudentId(savedUid);
 
-    // Membaca Nyawa Siswa dengan aman di sisi Client
     const savedHearts = localStorage.getItem("snag_student_hearts");
     if (savedHearts) setHearts(parseInt(savedHearts));
   }, []);
@@ -217,14 +207,13 @@ export default function WorkspacePage() {
     flushToSupabase,
   } = useLearningAnalytics(activeStudentId, activeQuestion?.id || "q_unknown", currentLevelId || "unit-1");
 
-  // Jika parameter salah, kembalikan layar ini
   if (!levelData || !levelData.questions || levelData.questions.length === 0 || !activeQuestion) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-slate-50">
         <h2 className="text-2xl font-black text-slate-800 mb-2">Ups! Level Tidak Ditemukan</h2>
-        <p className="text-slate-500 mb-6">Mungkin URL yang kamu masukkan salah.</p>
-        <Link href="/dashboard" className="px-6 py-3 bg-sky-500 hover:bg-sky-600 text-white font-bold rounded-2xl shadow-sm">
-          Kembali ke Dashboard
+        <p className="text-slate-500 mb-6">Pastikan ID level sudah benar (misal: level-1).</p>
+        <Link href="/petualangan" className="px-6 py-3 bg-sky-500 hover:bg-sky-600 text-white font-bold rounded-2xl shadow-sm">
+          Kembali ke Peta
         </Link>
       </div>
     );
@@ -254,7 +243,12 @@ export default function WorkspacePage() {
     await flushToSupabase(isCorrect);
 
     if (isCorrect) {
-      // LOGIKA KETIKA JAWABAN BENAR
+      // --- SISTEM HADIAH KOIN (+10 KOIN) ---
+      const currentCoins = parseInt(localStorage.getItem("snag_student_coins") || "150");
+      const newCoins = currentCoins + 10;
+      localStorage.setItem("snag_student_coins", newCoins.toString());
+      // ------------------------------------
+
       const isLastQuestion = currentQuestionIndex === levelData.questions.length - 1;
       
       if (isLastQuestion) {
@@ -275,12 +269,11 @@ export default function WorkspacePage() {
           if (nextLevelId) {
             router.push(`/workspace/${nextLevelId}`);
           } else {
-            router.push("/dashboard");
+            router.push("/petualangan");
           }
         }, 3200);
 
       } else {
-        // Lanjut ke soal berikutnya di level yang sama
         setTimeout(() => {
           setCurrentQuestionIndex((prev) => prev + 1);
           setSelectedAnswer(null);
@@ -292,7 +285,6 @@ export default function WorkspacePage() {
       }
       
     } else {
-      // LOGIKA KETIKA JAWABAN SALAH (PENGURANGAN NYAWA)
       setShowHintPulse(true);
 
       const currentHearts = parseInt(localStorage.getItem("snag_student_hearts") || "5");
@@ -301,23 +293,19 @@ export default function WorkspacePage() {
         localStorage.setItem("snag_student_hearts", newHearts.toString());
         setHearts(newHearts);
 
-        // Jika nyawa mulai berkurang dari 5 ke 4, mulai hitung mundur regen di sistem
         if (newHearts === 4) {
           localStorage.setItem("snag_regen_start", Date.now().toString());
         }
 
-        // Jika nyawa habis
         if (newHearts === 0) {
           setTimeout(() => {
             alert("Nyawa kamu habis! Silakan isi ulang di Profil.");
-            router.push("/dashboard");
+            router.push("/profil");
           }, 1000);
         }
       }
     }
-  }, [
-    selectedAnswer, activeQuestion, currentQuestionIndex, levelData.questions.length, currentLevelId, flushToSupabase, router,
-  ]);
+  }, [selectedAnswer, activeQuestion, currentQuestionIndex, levelData.questions.length, currentLevelId, flushToSupabase, router]);
 
   // ================= HINT =================
 
@@ -352,201 +340,227 @@ export default function WorkspacePage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans overflow-hidden relative">
+    /* KUNCI MUTLAK LAYAR (fixed inset-0) AGAR TIDAK BISA SCROLL LUAR. LAYAR TERKUNCI 100% */
+    <div className="fixed inset-0 flex flex-col items-center justify-start overflow-hidden font-sans selection:bg-sky-200 before:absolute before:inset-0 before:-z-10 before:bg-[url('/images/quiz.webp')] before:bg-cover before:bg-center animate-[fade-in_0.3s_ease_out_forwards]">
       
       {/* SCREEN SELEBRASI SUKSES */}
       {showSuccessScreen && (
-        <div className="fixed inset-0 z-50 bg-emerald-500 flex flex-col items-center justify-center text-white p-6 animate-[duoFadeIn_0.3s_ease_forwards]">
+        <div className="fixed inset-0 z-50 bg-emerald-500/90 backdrop-blur-sm flex flex-col items-center justify-center text-white p-6 animate-[duoFadeIn_0.3s_ease_forwards]">
           <div className="text-center space-y-6 max-w-sm animate-[duoScaleUp_0.5s_cubic-bezier(0.175,0.885,0.32,1.275)_0.1s_forwards] opacity-0 scale-75">
-            <div className="w-28 h-28 bg-white/20 border-4 border-white rounded-full flex items-center justify-center mx-auto shadow-xl shadow-emerald-600/30 animate-bounce">
-              <TropyIcon className="w-14 h-14 text-white" />
+            <div className="w-28 h-28 bg-white border-4 border-emerald-300 rounded-full flex items-center justify-center mx-auto shadow-[0_0_40px_rgba(255,255,255,0.4)] animate-bounce">
+              <TropyIcon className="w-14 h-14 text-amber-500" />
             </div>
             <div className="space-y-2">
-              <h1 className="text-3xl font-black tracking-tight">Luar Biasa!</h1>
-              <p className="text-emerald-100 font-medium text-sm leading-relaxed">
-                Kamu berhasil menyelesaikan seluruh tantangan di tingkat <span className="underline decoration-amber-300 decoration-2 font-bold">{levelData.topic}</span> dengan sempurna!
+              <h1 className="text-4xl font-black tracking-tight drop-shadow-md">Luar Biasa!</h1>
+              <p className="text-emerald-50 font-bold text-base leading-relaxed drop-shadow-sm">
+                Kamu berhasil menyelesaikan tantangan <span className="text-amber-200 font-black">{levelData.topic}</span> dengan sempurna!
               </p>
             </div>
           </div>
         </div>
       )}
 
-      {/* HEADER */}
-      <header className="bg-white border-b border-slate-100 shadow-sm animate-[slideInDown_0.4s_ease]">
-        <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between gap-3">
-          <Link href="/dashboard" className="flex items-center gap-1.5 text-slate-500 hover:text-slate-800 transition-colors text-sm font-medium">
+      {/* HEADER KUIS (TINGGI TETAP, TIDAK MENYUSUT) */}
+      <header className="w-full bg-white/90 backdrop-blur-md shadow-sm animate-[slideInDown_0.4s_ease] shrink-0 z-30">
+        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between gap-3">
+          <Link href="/petualangan" className="flex items-center gap-1.5 text-slate-600 hover:text-sky-600 transition-colors font-bold bg-slate-100 hover:bg-sky-50 px-3 py-1.5 rounded-full shrink-0">
             <ArrowLeftIcon className="w-4 h-4" />
-            <span>Kembali</span>
+            <span className="hidden sm:inline">Peta</span>
           </Link>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-slate-400">Progres Sesi: {currentQuestionIndex + 1} / {levelData.questions.length}</span>
-            <div className="w-24 bg-slate-100 h-2.5 rounded-full overflow-hidden border border-slate-200/60">
-              <div className="bg-emerald-400 h-full rounded-full transition-all duration-500" style={{ width: `${progressPercentage}%` }} />
-            </div>
+          
+          <div className="flex flex-col items-center justify-center overflow-hidden">
+             <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest truncate">{levelData.topic}</span>
+             <span className="text-sm font-black text-slate-700 truncate">Misi {currentQuestionIndex + 1} dari {levelData.questions.length}</span>
           </div>
+
+          <div className="flex items-center gap-1 bg-rose-50 px-3 py-1.5 rounded-full border border-rose-100 shrink-0">
+             <img src="/images/icon-heart.webp" alt="Nyawa" className="h-5 w-auto" />
+             <span className="font-black text-rose-600">{hearts}</span>
+          </div>
+        </div>
+        <div className="w-full bg-slate-200/50 h-1.5 overflow-hidden">
+          <div className="bg-sky-400 h-full transition-all duration-500 shadow-[0_0_10px_rgba(56,189,248,0.8)]" style={{ width: `${progressPercentage}%` }} />
         </div>
       </header>
 
-      {/* MAIN */}
-      <main className="max-w-7xl mx-auto px-4 py-6 lg:py-10 overflow-x-hidden animate-[duoScaleUp_0.4s_ease]">
-        <div className="flex flex-col lg:flex-row gap-6 justify-center items-start transition-all duration-700">
+      {/* MAIN KONTEN (MEMENUHI SISA LAYAR, CARD DIKUNCI H-FULL DENGAN INTERNAL SCROLL) */}
+      <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-4 md:py-6 overflow-hidden flex flex-col z-10 relative">
+        <div className="flex flex-col lg:flex-row gap-4 md:gap-6 justify-center items-center lg:items-stretch w-full h-full overflow-hidden">
           
-          {/* LEFT CONTENT */}
-          <div className={`transition-all duration-700 w-full ${scaffoldingOpen ? "lg:w-[58%]" : "lg:w-[72%]"}`}>
+          {/* ========================================================= */}
+          {/* AREA KIRI: SOAL & JAWABAN (KARTU DIKUNCI H-FULL, INNER SCROLL) */}
+          {/* ========================================================= */}
+          <div className={`transition-all duration-700 flex flex-col h-full bg-white/95 backdrop-blur-md rounded-[2rem] border-[4px] border-white shadow-xl overflow-hidden ${scaffoldingOpen ? "w-full lg:w-[55%]" : "w-full lg:w-[70%] max-w-4xl mx-auto"}`}>
             
-            {/* QUESTION */}
-            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6">
-              <div className="inline-flex items-center gap-1.5 bg-sky-50 border border-sky-200 rounded-full px-3 py-1 mb-4">
-                <div className="w-2 h-2 rounded-full bg-sky-400" />
-                <span className="text-xs font-bold text-sky-600 uppercase tracking-wide">{levelData.topic}</span>
+            {/* AREA SCROLL KONTEN DI DALAM KARTU */}
+            <div className="flex-1 overflow-y-auto p-5 md:p-8 custom-scrollbar">
+              <div className="inline-flex items-center gap-2 bg-amber-100 text-amber-700 border border-amber-200 rounded-xl px-3 py-1.5 mb-4 shadow-sm">
+                <LightbulbIcon className="w-4 h-4" />
+                <span className="text-xs font-black uppercase tracking-wide">Tantangan Logika</span>
               </div>
 
-              <h2 className="text-lg font-bold text-slate-800 leading-relaxed mb-3">{activeQuestion.questionText}</h2>
-              <p className="text-slate-600 text-sm leading-relaxed mb-4">{activeQuestion.questionSubtext}</p>
+              <h2 className="text-xl md:text-2xl font-black text-slate-800 leading-snug mb-3">{activeQuestion.questionText}</h2>
+              {activeQuestion.questionSubtext && (
+                 <p className="text-slate-600 font-medium text-base leading-relaxed mb-6">{activeQuestion.questionSubtext}</p>
+              )}
 
+              {/* GAMBAR SOAL DIBATASI TINGGINYA AGAR TIDAK MEMAKAN RUANG */}
               {activeQuestion.imageUrl && (
-                <div className="mt-4 mb-4 rounded-xl overflow-hidden border-2 border-slate-100 bg-slate-50 flex items-center justify-center p-2">
-                  <img src={activeQuestion.imageUrl} alt="Ilustrasi Soal" className="max-h-64 object-contain rounded-lg" />
+                <div className="mt-4 mb-6 rounded-2xl overflow-hidden border-2 border-slate-100 bg-slate-50 flex items-center justify-center p-4">
+                  <img src={activeQuestion.imageUrl} alt="Ilustrasi Soal" className="max-h-[25vh] object-contain rounded-lg drop-shadow-sm" />
                 </div>
               )}
 
               {!activeQuestion.imageUrl && (
                 activeQuestion.imageSvg ? (
-                  <div className="mt-5 p-4 bg-white rounded-2xl border border-slate-100 flex items-center justify-center">
+                  <div className="mt-4 mb-6 p-6 bg-white rounded-3xl border-2 border-slate-100 shadow-inner flex items-center justify-center">
                     {activeQuestion.imageSvg}
                   </div>
                 ) : (
-                  <div className="mt-5 p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-center gap-2 flex-wrap">
+                  <div className="mt-4 mb-6 p-6 bg-slate-50 rounded-3xl border-2 border-slate-100 shadow-inner flex items-center justify-center gap-3 flex-wrap">
                     {Array.from({ length: activeQuestion.totalItems || 0 }).map((_, i) => (
-                      <ItemIcon key={i} className="w-8 h-8" />
+                      <ItemIcon key={i} className="w-10 h-10" />
                     ))}
                   </div>
                 )
               )}
-            </div>
 
-            {/* ANSWERS */}
-            <div className="flex flex-col md:grid md:grid-cols-2 gap-3 mt-6">
-              {activeQuestion.choices?.map((choice) => (
-                <AnswerCard
-                  key={choice.value}
-                  value={choice.value}
-                  label={choice.label}
-                  imageUrl={choice.choiceImageUrl} 
-                  selected={selectedAnswer === choice.value}
-                  disabled={answeredCorrectly}
-                  isCorrect={checkResult !== null && selectedAnswer === choice.value ? checkResult : undefined}
-                  onSelect={() => handleSelectAnswer(choice.value)}
-                />
-              ))}
-            </div>
-
-            {/* RESULT */}
-            {checkResult !== null && (
-              <div className={`flex items-center gap-3 border-2 rounded-2xl p-4 mt-4 animate-[fadeInUp_0.3s_ease] ${checkResult ? "bg-emerald-50 border-emerald-200" : "bg-red-50 border-red-200"}`}>
-                {checkResult ? <CheckCircleIcon className="w-6 h-6 text-emerald-500" /> : <XCircleIcon className="w-6 h-6 text-red-400" />}
-                <div>
-                  <p className={`font-bold text-sm ${checkResult ? "text-emerald-700" : "text-red-600"}`}>
-                    {checkResult ? "Tepat Sekali!" : "Masih keliru, mari coba lagi!"}
-                  </p>
-                  <p className={`text-xs mt-0.5 ${checkResult ? "text-emerald-600" : "text-red-500"}`}>
-                    {checkResult ? activeQuestion.successMessage : activeQuestion.errorMessage}
-                  </p>
-                </div>
+              {/* AREA JAWABAN */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+                {activeQuestion.choices?.map((choice) => (
+                  <AnswerCard
+                    key={choice.value}
+                    value={choice.value}
+                    label={choice.label}
+                    imageUrl={choice.choiceImageUrl} 
+                    selected={selectedAnswer === choice.value}
+                    disabled={answeredCorrectly}
+                    isCorrect={checkResult !== null && selectedAnswer === choice.value ? checkResult : undefined}
+                    onSelect={() => handleSelectAnswer(choice.value)}
+                  />
+                ))}
               </div>
-            )}
 
-            {/* BUTTONS */}
-            <div className="relative flex flex-col sm:flex-row gap-3 mt-5">
-              <button
-                onClick={handleCheckAnswer}
-                disabled={selectedAnswer === null || answeredCorrectly}
-                className={`flex-1 py-3.5 px-6 rounded-2xl font-bold text-sm transition-all duration-200 ${
-                  selectedAnswer !== null && !answeredCorrectly
-                    ? "bg-sky-500 hover:bg-sky-600 text-white shadow-md border-b-4 border-sky-700"
-                    : "bg-slate-100 text-slate-400"
-                }`}
-              >
-                Periksa Jawaban
-              </button>
+              {/* HASIL CEK */}
+              {checkResult !== null && (
+                <div className={`flex items-center gap-4 border-[3px] rounded-2xl p-4 md:p-5 mt-6 shadow-sm animate-[fadeInUp_0.3s_ease] ${checkResult ? "bg-emerald-50 border-emerald-300" : "bg-red-50 border-red-300"}`}>
+                  <div className={`p-2 rounded-full shrink-0 ${checkResult ? "bg-emerald-100" : "bg-red-100"}`}>
+                     {checkResult ? <CheckCircleIcon className="w-8 h-8 text-emerald-600" /> : <XCircleIcon className="w-8 h-8 text-red-500" />}
+                  </div>
+                  <div>
+                    <p className={`font-black text-lg md:text-xl ${checkResult ? "text-emerald-700" : "text-red-700"}`}>
+                      {checkResult ? "Luar Biasa!" : "Masih Keliru"}
+                    </p>
+                    <p className={`text-sm font-bold mt-1 leading-snug ${checkResult ? "text-emerald-600/80" : "text-red-600/80"}`}>
+                      {checkResult ? activeQuestion.successMessage : activeQuestion.errorMessage}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
 
-              <button
-                onClick={handleHint}
-                disabled={scaffoldingOpen}
-                className={`relative overflow-hidden flex items-center justify-center gap-2 py-3.5 px-5 rounded-2xl font-bold text-sm border-2 transition-all duration-300
-                  ${!scaffoldingOpen ? "bg-amber-50 border-amber-300 text-amber-700 hover:bg-amber-100 border-b-4 border-amber-500" : "bg-slate-100 border-slate-200 text-slate-400"}
-                  ${showHintPulse && !scaffoldingOpen ? "animate-[hintPulse_1.8s_ease-in-out_infinite] ring-4 ring-amber-200 shadow-[0_0_30px_rgba(251,191,36,0.45)]" : ""}
-                  ${checkResult === false ? "glowing-hint" : ""}
-                `}
-              >
-                <LightbulbIcon className="w-4 h-4" />
-                {scaffoldingOpen ? "Bantuan Aktif" : "Minta Petunjuk AI"}
-              </button>
+            {/* AREA BAWAH: TOMBOL (TETAP DIAM DI BAWAH KARTU, TIDAK IKUT SCROLL) */}
+            <div className="shrink-0 p-5 md:p-8 pt-4 md:pt-6 bg-white/95 border-t-2 border-slate-100 z-10">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={handleCheckAnswer}
+                  disabled={selectedAnswer === null || answeredCorrectly}
+                  className={`flex-1 py-3.5 px-6 rounded-2xl font-black text-base transition-all duration-200 ${
+                    selectedAnswer !== null && !answeredCorrectly
+                      ? "bg-sky-500 hover:bg-sky-600 text-white shadow-lg shadow-sky-500/30 border-b-4 border-sky-700 active:border-b-0 active:mt-1"
+                      : "bg-slate-200 text-slate-400 border-b-4 border-slate-300"
+                  }`}
+                >
+                  Periksa Jawaban
+                </button>
+
+                <button
+                  onClick={handleHint}
+                  disabled={scaffoldingOpen}
+                  className={`relative overflow-hidden flex items-center justify-center gap-2 py-3.5 px-6 rounded-2xl font-black text-base border-2 transition-all duration-300
+                    ${!scaffoldingOpen ? "bg-amber-100 border-amber-300 text-amber-700 hover:bg-amber-200 border-b-4 border-amber-400 active:border-b-2 active:mt-0.5" : "bg-slate-100 border-slate-200 text-slate-400"}
+                    ${showHintPulse && !scaffoldingOpen ? "animate-[hintPulse_1.5s_ease-in-out_infinite] ring-4 ring-amber-200 shadow-xl shadow-amber-500/30" : ""}
+                    ${checkResult === false ? "glowing-hint" : ""}
+                  `}
+                >
+                  <SparkleIcon className="w-5 h-5 shrink-0" />
+                  {scaffoldingOpen ? "Bantuan Aktif" : "Minta AI Membantu"}
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* RIGHT PANEL - AI SCAFFOLDING */}
+          {/* ========================================================= */}
+          {/* AREA KANAN: AI SCAFFOLDING (DIKUNCI H-FULL, INNER SCROLL) */}
+          {/* ========================================================= */}
           {(scaffoldingOpen || checkResult === false) && (
-            <div className="w-full lg:w-[38%] animate-[slideInRight_0.5s_cubic-bezier(0.22,1,0.36,1)]">
-              <div className="bg-white rounded-3xl border-2 border-amber-200 shadow-sm overflow-hidden min-h-[500px]">
-                <div className="flex items-center gap-2.5 px-5 py-3.5 border-b bg-amber-50 border-amber-100">
-                  <div className="w-7 h-7 rounded-xl flex items-center justify-center bg-amber-400">
-                    <SparkleIcon className="w-3.5 h-3.5 text-white" />
+            <div className="w-full lg:w-[45%] h-full animate-[slideInRight_0.5s_cubic-bezier(0.22,1,0.36,1)]">
+              <div className="bg-white/95 backdrop-blur-md rounded-[2rem] border-[4px] border-amber-200 shadow-xl overflow-hidden h-full flex flex-col">
+                
+                {/* Header AI */}
+                <div className="flex items-center gap-3 px-6 py-4 border-b-4 bg-amber-50 border-amber-100 shrink-0">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-amber-400 shadow-sm border border-amber-500 shrink-0">
+                    <SparkleIcon className="w-6 h-6 text-white" />
                   </div>
-                  <div><p className="text-xs font-black uppercase tracking-widest text-amber-600">AI Scaffolding</p></div>
+                  <div className="min-w-0">
+                     <h3 className="font-black text-amber-700 text-lg truncate">AI Scaffolding</h3>
+                     <p className="text-[10px] font-bold uppercase text-amber-600/70 tracking-widest truncate">Teman Analisis Logika</p>
+                  </div>
                 </div>
 
-                <div className="p-5">
+                {/* Konten AI (Bisa di-scroll) */}
+                <div className="p-6 flex-1 overflow-y-auto custom-scrollbar">
                   {isAiLoading ? (
-                    <div className="flex flex-col items-center justify-center h-full gap-4 py-12">
-                      <LoadingSpinnerIcon className="w-10 h-10 text-amber-500" />
-                      <p className="text-sm font-semibold text-slate-500 animate-pulse">Menyusun petunjuk logika...</p>
+                    <div className="flex flex-col items-center justify-center h-full gap-4 py-16">
+                      <LoadingSpinnerIcon className="w-12 h-12 text-amber-500" />
+                      <p className="text-base font-bold text-amber-600/80 animate-pulse text-center">AI sedang menyusun<br/>petunjuk rahasia...</p>
                     </div>
                   ) : aiResponseData ? (
-                    <div className="flex flex-col gap-4 animate-[fadeIn_0.4s_ease_forwards]">
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="w-6 h-6 rounded-full bg-amber-400 flex items-center justify-center">
-                          <LightbulbIcon className="w-3.5 h-3.5 text-white" />
+                    <div className="flex flex-col gap-4 animate-[fadeIn_0.4s_ease_forwards] pb-4">
+                      
+                      <div className="flex items-center gap-2 mb-2 bg-slate-100 p-3 rounded-xl border border-slate-200">
+                        <div className="w-8 h-8 rounded-full bg-slate-300 flex items-center justify-center shrink-0">
+                          <LightbulbIcon className="w-5 h-5 text-slate-600" />
                         </div>
-                        <h3 className="font-bold text-slate-700 text-sm">Petunjuk Analisis (Bertahap)</h3>
+                        <h3 className="font-bold text-slate-700 text-sm leading-snug">Mari kita bedah masalah ini bersama!</h3>
                       </div>
 
-                      {/* MEMETAKAN (LOOPING) MULTIPLE STEPS DARI AI */}
+                      {/* MEMETAKAN LANGKAH AI */}
                       {aiResponseData.steps && aiResponseData.steps.map((step: any, idx: number) => (
                         <ScaffoldStep 
                           key={idx} 
                           number={step.step_number || idx + 1} 
                           title={`Analisis Langkah ${idx + 1}`}
                         >
-                          <p className="text-xs text-slate-600 mb-1 mt-1 font-medium leading-relaxed">
+                          <p className="text-sm text-slate-700 mb-1 mt-2 font-medium leading-relaxed">
                             {step.instruction}
                           </p>
                         </ScaffoldStep>
                       ))}
 
-                      {/* FALLBACK TAMPILAN VISUAL KOTAK (JIKA SOAL MATEMATIKA) */}
+                      {/* FALLBACK TAMPILAN VISUAL */}
                       {((aiResponseData.visual_groups && aiResponseData.visual_groups.length > 0) || aiResponseData.visual_boxes > 0) && (
                         <ScaffoldStep 
                           number={(aiResponseData.steps?.length || 1) + 1} 
                           title="Langkah Bantuan Visual"
                         >
-                          <div className="flex flex-wrap gap-3 mt-2">
+                          <div className="flex flex-wrap gap-3 mt-3">
                             {aiResponseData.visual_groups ? (
                               aiResponseData.visual_groups.map((count: number, boxIdx: number) => (
-                                <div key={boxIdx} className="flex flex-col items-center gap-1 p-2 rounded-xl border-2 border-dashed border-sky-300 bg-sky-50 min-w-[3rem]">
+                                <div key={boxIdx} className="flex flex-col items-center gap-1 p-3 rounded-xl border-2 border-dashed border-sky-300 bg-sky-50 min-w-[4rem]">
                                   <div className="flex flex-wrap gap-1 justify-center">
                                     {Array.from({ length: count || 0 }).map((_, itemIdx) => (
-                                      <ItemIcon key={itemIdx} className="w-5 h-5 animate-[popIn_0.3s_ease_forwards]" />
+                                      <ItemIcon key={itemIdx} className="w-6 h-6 animate-[popIn_0.3s_ease_forwards]" />
                                     ))}
                                   </div>
                                 </div>
                               ))
                             ) : (
                               Array.from({ length: aiResponseData.visual_boxes || 0 }).map((_, boxIdx) => (
-                                <div key={boxIdx} className="flex flex-col items-center gap-1 p-2 rounded-xl border-2 border-dashed border-sky-300 bg-sky-50">
+                                <div key={boxIdx} className="flex flex-col items-center gap-1 p-3 rounded-xl border-2 border-dashed border-sky-300 bg-sky-50">
                                   <div className="flex flex-wrap gap-1 justify-center min-h-[3rem]">
                                     {Array.from({ length: aiResponseData.items_per_box || 0 }).map((_, itemIdx) => (
-                                      <ItemIcon key={itemIdx} className="w-5 h-5 animate-[popIn_0.3s_ease_forwards]" />
+                                      <ItemIcon key={itemIdx} className="w-6 h-6 animate-[popIn_0.3s_ease_forwards]" />
                                     ))}
                                   </div>
                                 </div>
@@ -566,26 +580,33 @@ export default function WorkspacePage() {
         </div>
       </main>
 
-      {/* ANIMATION KEYFRAMES */}
+      {/* ANIMATION KEYFRAMES & CUSTOM SCROLLBAR */}
       <style>{`
+        @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
         @keyframes duoFadeIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes duoScaleUp { from { opacity: 0; transform: scale(0.9) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        @keyframes duoScaleUp { from { opacity: 0; transform: scale(0.95) translateY(20px); } to { opacity: 1; transform: scale(1) translateY(0); } }
         @keyframes slideInDown { from { transform: translateY(-100%); } to { transform: translateY(0); } }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes popIn { from { opacity: 0; transform: scale(0.4); } to { opacity: 1; transform: scale(1); } }
-        @keyframes slideInRight { from { opacity: 0; transform: translateX(30px); } to { opacity: 1; transform: translateX(0); } }
-        @keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideInRight { from { opacity: 0; transform: translateX(50px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+        
         @keyframes hintPulse {
           0% { transform: scale(1); box-shadow: 0 0 0 rgba(251,191,36,0); }
-          50% { transform: scale(1.02); box-shadow: 0 0 20px rgba(251,191,36,0.35); }
+          50% { transform: scale(1.03); box-shadow: 0 0 30px rgba(251,191,36,0.6); }
           100% { transform: scale(1); box-shadow: 0 0 0 rgba(251,191,36,0); }
         }
         @keyframes hintGlow {
           0% { box-shadow: 0 0 5px rgba(251, 191, 36, 0.4); }
-          50% { box-shadow: 0 0 16px rgba(251, 191, 36, 0.7); }
+          50% { box-shadow: 0 0 25px rgba(251, 191, 36, 0.8); }
           100% { box-shadow: 0 0 5px rgba(251, 191, 36, 0.4); }
         }
         .glowing-hint { animation: hintGlow 1.4s infinite; border: 2px solid #fbbf24; }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; } 
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; } 
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(203, 213, 225, 0.8); border-radius: 8px; } 
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 1); }
       `}</style>
     </div>
   );

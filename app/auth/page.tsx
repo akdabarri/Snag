@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 
 export default function AuthPage() {
   const router = useRouter();
+  
   const [isRegister, setIsRegister] = useState(false);
   const [username, setUsername] = useState("");
   const [fullName, setFullName] = useState("");
@@ -14,8 +15,26 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ text: "", isError: false });
 
-  // Fungsi pembersihan username dari spasi dan huruf kapital
+  const [secretClickCount, setSecretClickCount] = useState(0);
+  const [isEducatorMode, setIsEducatorMode] = useState(false);
+
   const cleanUsername = (str: string) => str.trim().toLowerCase().replace(/\s+/g, "");
+  
+  // Regex yang sudah diperbaiki (memperbolehkan simbol, wajib 8 karakter)
+  const validatePassword = (pwd: string) => {
+    const regex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
+    return regex.test(pwd);
+  };
+
+  const handleSecretTrigger = () => {
+    const newCount = secretClickCount + 1;
+    setSecretClickCount(newCount);
+    if (newCount >= 5) {
+      setIsEducatorMode(!isEducatorMode);
+      setSecretClickCount(0); 
+      setMessage({ text: !isEducatorMode ? "Akses Peneliti Terbuka 📊" : "Kembali ke Mode Siswa 🎮", isError: false });
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,176 +45,195 @@ export default function AuthPage() {
 
     try {
       if (isRegister) {
-        // ======================================================
-        // PROSES REGISTER: SIMPAN KE TABEL STUDENTS
-        // ======================================================
-        
-        // 1. Validasi apakah username sudah terpakai
+        // ================== REGISTER ==================
+        if (!validatePassword(password)) {
+          setMessage({ text: "Ups! Kata sandimu kurang kuat. Gunakan minimal 8 karakter dengan campuran huruf dan angka ya!", isError: true });
+          setLoading(false);
+          return; 
+        }
+
         const { data: existingStudent, error: checkError } = await supabase
           .from("students")
           .select("username")
           .eq("username", targetUsername);
 
         if (checkError) {
-          console.error("Supabase Check Error Details:", checkError);
-          throw new Error(`Gagal memeriksa username: ${checkError.message} (Kode: ${checkError.code})`);
+          setMessage({ text: `Database Error: ${checkError.message}`, isError: true });
+          setLoading(false);
+          return;
         }
-
+        
         if (existingStudent && existingStudent.length > 0) {
-          throw new Error("Username sudah diambil pahlawan lain. Coba nama unik ya!");
+          setMessage({ text: "Username ini sudah dipakai pahlawan lain. Coba pakai nama yang lebih unik!", isError: true });
+          setLoading(false);
+          return;
         }
 
-        // 2. Masukkan data siswa baru ke tabel public.students
+        // INSERT DISESUAIKAN DENGAN SKEMA TABEL DI image_f1aca9.png (Hanya masukkan kolom yang ada)
         const { error: insertError } = await supabase
           .from("students")
           .insert([
             {
               username: targetUsername,
               full_name: fullName.trim(),
-              password: password, // Menyimpan kredensial dasar pengerjaan media siswa SD
+              password: password,
             },
           ]);
 
         if (insertError) {
-          console.error("Supabase Insert Error Details:", insertError);
-          throw new Error(`Gagal membuat akun: ${insertError.message} (Kode: ${insertError.code})`);
+          console.error("SUPABASE INSERT ERROR:", insertError);
+          setMessage({ text: `Gagal dari Supabase: ${insertError.message}`, isError: true });
+          setLoading(false);
+          return;
         }
 
-        setMessage({ text: "Akun SNAG berhasil dibuat! Ayo masuk menggunakan username-mu.", isError: false });
+        setMessage({ text: "Yey! Akun SNAG berhasil dibuat. Sekarang kamu bisa masuk!", isError: false });
         setIsRegister(false);
         setPassword("");
         setFullName("");
+
       } else {
-        // ======================================================
-        // PROSES LOGIN: COCOKKAN DATA TABEL STUDENTS
-        // ======================================================
+        // ================== LOGIN ==================
         const { data: student, error: loginError } = await supabase
           .from("students")
           .select("*")
           .eq("username", targetUsername)
-          .eq("password", password);
+          .eq("password", password)
+          .single();
 
-        if (loginError) {
-          console.error("Supabase Login Error Details:", loginError);
-          throw new Error(`Gagal memuat basis data: ${loginError.message} (Kode: ${loginError.code})`);
+        if (loginError || !student) {
+          setMessage({ text: "Hmm, Username atau Kata Sandi sepertinya salah. Coba dicek lagi ya!", isError: true });
+          setLoading(false);
+          return;
         }
 
-        if (!student || student.length === 0) {
-          throw new Error("Username atau Kata Sandi salah. Periksa kembali ya!");
-        }
+        // SIMPAN IDENTITAS LOKAL (Role ditentukan oleh UI, bukan Database)
+        localStorage.setItem("snag_user_id", student.id);
+        localStorage.setItem("snag_user_name", student.full_name);
+        localStorage.setItem("snag_user_role", isEducatorMode ? "teacher" : "student");
+        localStorage.setItem("snag_student_hearts", (student.current_hearts ?? 5).toString());
 
-        const activeStudent = student[0];
-
-        // Amankan sesi identitas siswa ke LocalStorage untuk mesin Learning Analytics
-        localStorage.setItem("snag_user_id", activeStudent.id);
-        localStorage.setItem("snag_user_name", activeStudent.full_name);
-        localStorage.setItem("snag_student_hearts", (activeStudent.current_hearts ?? 5).toString());
-
-        setMessage({ text: "Koneksi sukses! Membuka gerbang tantangan SNAG...", isError: false });
+        setMessage({ text: "Koneksi sukses! Menyiapkan ruang belajarmu...", isError: false });
         
+        // SMART ROUTING (Mengecek current_unit sesuai skema image_f1aca9.png)
         setTimeout(() => {
-          router.push("/introduction");
+          if (isEducatorMode) {
+            router.replace("/analytics"); 
+          } else {
+            // Jika current_unit di database masih kosong/null, berarti dia pemain baru
+            const isNewPlayer = !student.current_unit || student.current_unit === 0;
+            if (isNewPlayer) {
+              router.replace("/introduction"); 
+            } else {
+              router.replace("/beranda"); 
+            }
+          }
         }, 1500);
       }
     } catch (error: any) {
-      // Mengekstrak properti message string eksplisit agar tidak mentah menjadi objek kosongan {}
-      console.error("SNAG Auth Exception Caught:", error.message || error);
-      setMessage({ text: error.message || "Terjadi kendala jaringan, silakan coba lagi.", isError: true });
+      console.error("SNAG System Error:", error);
+      setMessage({ text: `Sistem Error: ${error.message}`, isError: true });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 font-sans selection:bg-sky-200 selection:text-sky-900">
-      <div className="bg-white p-8 rounded-3xl border-2 border-slate-200 shadow-xl max-w-md w-full text-center space-y-6 animate-in fade-in zoom-in-95 duration-300 relative overflow-hidden">
+    <div className={`min-h-screen flex flex-col items-center justify-center p-4 font-sans selection:bg-sky-200 transition-colors duration-500 ${isEducatorMode ? 'bg-slate-900 text-slate-100 selection:text-slate-900' : 'bg-slate-50 selection:text-sky-900'}`}>
+      
+      <div className={`p-8 rounded-3xl border-2 shadow-xl max-w-md w-full text-center space-y-6 animate-in fade-in zoom-in-95 duration-300 relative overflow-hidden transition-all ${isEducatorMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
         
-        {/* Aksen Estetik Latar Belakang Kotak (Opsional, agar tidak kaku) */}
-        <div className="absolute -top-24 -right-24 w-48 h-48 bg-sky-50 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-emerald-50 rounded-full blur-3xl pointer-events-none" />
+        <div className={`absolute -top-24 -right-24 w-48 h-48 rounded-full blur-3xl pointer-events-none transition-colors ${isEducatorMode ? 'bg-sky-900/40' : 'bg-sky-50'}`} />
+        <div className={`absolute -bottom-24 -left-24 w-48 h-48 rounded-full blur-3xl pointer-events-none transition-colors ${isEducatorMode ? 'bg-emerald-900/40' : 'bg-emerald-50'}`} />
 
-        {/* BRANDING LOGO SNAG (DIUBAH MENGGUNAKAN GAMBAR ASLI) */}
         <div className="space-y-3 relative z-10">
-          <div className="flex justify-center mb-2">
+          <div className="flex justify-center mb-2" onClick={handleSecretTrigger} style={{ cursor: "pointer" }} title="SNAG Platform">
             <img 
               src="/images/1.png" 
-              alt="Logo SNAG" 
+              alt="Logo SNAG Platform" 
               className="h-20 md:h-24 w-auto object-contain drop-shadow-sm hover:scale-105 transition-transform duration-300"
-              onError={(e) => {
-                e.currentTarget.style.display = 'none';
-              }}
+              onError={(e) => { e.currentTarget.style.display = 'none'; }}
             />
           </div>
-          <h1 className="text-2xl font-black text-slate-800 tracking-tight">
-            {isRegister ? "Pendaftaran SNAG" : "Masuk ke SNAG"}
+          <h1 className="text-2xl font-black tracking-tight">
+            {isEducatorMode ? "Akses Peneliti Utama" : (isRegister ? "Pendaftaran SNAG" : "Masuk ke SNAG")}
           </h1>
-          <p className="text-sm text-slate-500 font-medium leading-relaxed">
-            {isRegister ? "Ayo gabung dan kembangkan logika Computational Thinking!" : "Selamat datang di Arena Berpikir Bebras"}
+          <p className={`text-sm font-medium leading-relaxed ${isEducatorMode ? 'text-slate-400' : 'text-slate-500'}`}>
+            {isEducatorMode 
+              ? "Dasbor Analitik dan Pemantauan Kognitif" 
+              : (isRegister ? "Jadilah pahlawan logika dan asah kemampuan Computational Thinking-mu!" : "Mulai petualangan numerasi seru berbasis kecerdasan buatan!")}
           </p>
         </div>
 
-        {/* NOTIFIKASI STATUS */}
         {message.text && (
           <div className={`relative z-10 p-4 rounded-2xl text-xs font-bold border-2 leading-relaxed text-left ${
             message.isError 
-              ? "bg-red-50 border-red-200 text-red-600 animate-[shake_0.4s_ease]" 
+              ? "bg-rose-50 border-rose-200 text-rose-600 animate-[shake_0.4s_ease]" 
               : "bg-emerald-50 border-emerald-200 text-emerald-700"
           }`}>
             {message.isError ? "⚠️ " : "✅ "} {message.text}
           </div>
         )}
 
-        {/* FORM UTAMA */}
         <form onSubmit={handleSubmit} className="text-left space-y-4 relative z-10">
+          
           {isRegister && (
             <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-slate-600 px-1">Nama Lengkap</label>
+              <label className={`block text-xs font-bold px-1 ${isEducatorMode ? 'text-slate-300' : 'text-slate-600'}`}>Nama Lengkap Pahlawan</label>
               <input
                 type="text"
                 required
-                placeholder="Tulis nama lengkapmu"
+                placeholder="Misal: Budi Santoso"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-sky-400 outline-none text-sm transition-all font-semibold text-slate-700 bg-slate-50/50 focus:bg-white"
+                className={`w-full px-4 py-3 rounded-xl border-2 outline-none text-sm transition-all font-semibold ${isEducatorMode ? 'bg-slate-700/50 border-slate-600 text-white focus:border-sky-500 focus:bg-slate-700' : 'bg-slate-50/50 border-slate-200 text-slate-700 focus:border-sky-400 focus:bg-white'}`}
               />
             </div>
           )}
 
           <div className="space-y-1.5">
-            <label className="block text-xs font-bold text-slate-600 px-1">Username Unik</label>
+            <label className={`block text-xs font-bold px-1 ${isEducatorMode ? 'text-slate-300' : 'text-slate-600'}`}>Username Unik</label>
             <input
               type="text"
               required
-              placeholder="Contoh: akda24"
+              placeholder={isEducatorMode ? "ID Akses Peneliti" : "Misal: budi2026"}
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-sky-400 outline-none text-sm transition-all font-semibold text-slate-700 bg-slate-50/50 focus:bg-white"
+              className={`w-full px-4 py-3 rounded-xl border-2 outline-none text-sm transition-all font-semibold ${isEducatorMode ? 'bg-slate-700/50 border-slate-600 text-white focus:border-sky-500 focus:bg-slate-700' : 'bg-slate-50/50 border-slate-200 text-slate-700 focus:border-sky-400 focus:bg-white'}`}
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-xs font-bold text-slate-600 px-1">Kata Sandi (Password)</label>
+            <label className={`block text-xs font-bold px-1 ${isEducatorMode ? 'text-slate-300' : 'text-slate-600'}`}>Kata Sandi Rahasia</label>
             <input
               type="password"
               required
-              placeholder="Masukkan kata sandimu"
+              placeholder="Masukkan sandi rahasiamu"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-sky-400 outline-none text-sm transition-all font-semibold text-slate-700 bg-slate-50/50 focus:bg-white"
+              className={`w-full px-4 py-3 rounded-xl border-2 outline-none text-sm transition-all font-semibold ${isEducatorMode ? 'bg-slate-700/50 border-slate-600 text-white focus:border-sky-500 focus:bg-slate-700' : 'bg-slate-50/50 border-slate-200 text-slate-700 focus:border-sky-400 focus:bg-white'}`}
             />
+            {isRegister && (
+              <p className={`text-[10px] font-medium px-1 mt-1 ${isEducatorMode ? 'text-sky-400' : 'text-slate-400'}`}>
+                *Wajib 8 karakter dengan campuran huruf & angka ya!
+              </p>
+            )}
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3.5 mt-2 bg-sky-500 hover:bg-sky-600 disabled:bg-slate-200 text-white font-extrabold rounded-2xl text-sm transition-all border-b-4 border-sky-700 disabled:border-slate-300 shadow-md flex items-center justify-center gap-2"
+            className={`w-full py-3.5 mt-2 font-extrabold rounded-2xl text-sm transition-all border-b-4 shadow-md flex items-center justify-center gap-2 ${
+              isEducatorMode 
+                ? 'bg-sky-600 hover:bg-sky-500 text-white border-sky-800 disabled:bg-slate-700 disabled:border-slate-800 disabled:text-slate-500'
+                : 'bg-sky-500 hover:bg-sky-600 text-white border-sky-700 disabled:bg-slate-200 disabled:border-slate-300 disabled:text-slate-400'
+            }`}
           >
-            {loading ? "Menghubungkan..." : isRegister ? "Buat Akun Ksatria 🚀" : "Mulai Petualangan Game 🎮"}
+            {loading ? "Menyiapkan Arena..." : isRegister ? "Daftar Sekarang 🚀" : (isEducatorMode ? "Akses Dasbor Analitik 📊" : "Mulai Belajar 🎮")}
           </button>
         </form>
 
-        {/* TOGGLE PINDAH FORM */}
-        <div className="pt-3 border-t border-slate-100 relative z-10">
+        <div className={`pt-3 border-t relative z-10 ${isEducatorMode ? 'border-slate-700' : 'border-slate-100'}`}>
           <button
             type="button"
             onClick={() => {
@@ -205,9 +243,9 @@ export default function AuthPage() {
               setPassword("");
               setFullName("");
             }}
-            className="text-xs font-bold text-sky-600 hover:text-sky-700 underline transition-colors"
+            className={`text-xs font-bold hover:underline transition-colors ${isEducatorMode ? 'text-slate-400 hover:text-white' : 'text-sky-600 hover:text-sky-700'}`}
           >
-            {isRegister ? "Sudah punya akun petualang? Masuk di sini" : "Baru di sini? Daftar akun SNAG dulu"}
+            {isRegister ? "Sudah punya akun? Langsung masuk di sini" : "Belum punya akun? Daftar gratis di sini"}
           </button>
         </div>
 

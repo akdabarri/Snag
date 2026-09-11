@@ -21,7 +21,7 @@ export default function LandingPage() {
       <main className="relative z-10 min-h-[90vh] flex flex-col items-center justify-center p-6 md:p-12">
         <div className="w-full max-w-4xl flex flex-col items-center animate-in fade-in slide-in-from-bottom-6 duration-1000">
           
-          {/* Logo - Dibatasi tingginya agar tidak mendorong kartu ke bawah */}
+          {/* Logo */}
           <div className="mb-8">
             <img 
               src="/images/1.png" 
@@ -47,7 +47,7 @@ export default function LandingPage() {
             
             {/* Kartu Portal Siswa */}
             <Link 
-              href="/dashboard" 
+              href="/beranda" 
               className="group relative bg-white p-8 rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-sky-300 transition-all duration-300 flex flex-col justify-between"
             >
               <div>
@@ -64,7 +64,7 @@ export default function LandingPage() {
                 </p>
               </div>
               <div className="flex items-center gap-2 text-sm font-bold text-sky-500">
-                Masuk ke Dashboard <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform duration-300" />
+                Mulai Petualangan <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform duration-300" />
               </div>
             </Link>
 
@@ -101,11 +101,16 @@ export default function LandingPage() {
           <p className="text-[10px] font-black text-slate-400 tracking-widest uppercase mb-3">
             Dikembangkan Oleh
           </p>
-          <h3 className="text-lg font-black text-slate-800 mb-1">
-            Muhamad Akda Fathul Barri
+          <h3 className="text-base font-black text-slate-700 mb-1">
+            Tim Riset Kolaborasi UPI
           </h3>
-          <p className="text-slate-500 text-sm font-medium">
+          <p className="text-slate-500 text-xs font-medium mb-6">
             Universitas Pendidikan Indonesia Kampus Purwakarta
+          </p>
+          
+          {/* Watermark Kreator (Sangat Halus) */}
+          <p className="text-slate-300 text-[10px] font-medium tracking-wide">
+            — made by akda barri —
           </p>
         </div>
       </footer>
