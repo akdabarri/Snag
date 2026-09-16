@@ -121,7 +121,7 @@ export default function PetualanganPage() {
           <div className="flex flex-col items-center mb-[2vh] shrink-0">
               <div className="relative w-[50vw] max-w-[600px] aspect-[5/1] flex items-center justify-center drop-shadow-md">
                   <img src="/images/ribbon-title.webp" alt="Pita" className="absolute inset-0 w-full h-full object-fill -z-10" />
-                  <h2 className="text-[3vh] md:text-[3.5vh] font-black text-white uppercase tracking-widest drop-shadow-sm pb-[2%] z-10 whitespace-nowrap px-[4vw]">PILIH UNIT PETUALANGAN</h2>
+                  <h2 className="text-[3vh] md:text-[3vh] font-black text-white uppercase tracking-widest drop-shadow-sm pb-[2%] z-10 whitespace-nowrap px-[4vw]">PILIH UNIT PETUALANGAN</h2>
               </div>
               
           </div>
