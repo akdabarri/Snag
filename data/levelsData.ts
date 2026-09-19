@@ -6,6 +6,7 @@ export type QuestionItem = {
   questionText: string;
   questionSubtext: string;
   imageUrl?: string;
+  imageUrl2?: string;
   aiContext?: string;
   choices: { 
     value: number | string;
@@ -198,6 +199,7 @@ export const LEVELS_DATA: Record<string, LevelData> = {
         questionText: "Dua robot, Bolt dan Robo, dikendalikan satu remot. Mereka bergerak bersamaan sesuai tabel.",
         questionSubtext: "Urutan tombol mana yang membuat Bolt dan Robo berhenti pada kotak yang SAMA?",
         imageUrl: "/images/quiz/soal_robot.png",
+        imageUrl2: "/images/quiz/soal_robot2.png",
         aiContext: "Hanya kombinasi tombol D yang mempertemukan kedua robot di satu koordinat.",
         choices: [
           { value: "A", label: "Opsi A", choiceImageUrl: "/images/quiz/robot_a.png" },
@@ -243,6 +245,7 @@ export const LEVELS_DATA: Record<string, LevelData> = {
         questionText: "Tanda jejak: Belok Kiri (Batu kecil di kiri), Jalan Terus (2 Batu tumpuk), Ada Bahaya (3 Batu tumpuk).",
         questionSubtext: "Sebagian susunan batu tertutup semak dari atas sehingga hanya tampak 2 batu bertumpuk. Arti jejak apa yang MUNGKIN terjadi?",
         imageUrl: "/images/quiz/soal_jejak.png",
+        imageUrl2: "/images/quiz/soal_jejak2.png",
         aiContext: "Karena tertutup daun, bisa jadi hanya 2 batu (Jalan Terus) atau ada batu ke-3 di atasnya (Ada Bahaya).",
         choices: [
           { value: "A", label: "Hanya Jalan Terus", choiceImageUrl: undefined },

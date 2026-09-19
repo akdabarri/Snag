@@ -94,13 +94,23 @@ export default function AnalyticsPage() {
             if (!log.is_correct) levelMap[level].errorRate += 1;
 
             // Pengolahan CT Profiling (Grafik Radial)
-            if (level.includes("counting") || log.question_id?.includes("counting")) {
+            const currentLevel = log.level_id || "";
+
+            // 1. DEKOMPOSISI (Memecah masalah kompleks)
+            // Cocok untuk Level 2 (Logika Bersyarat) & Level 5 (Penyaringan Data)
+            if (currentLevel === "level-2" || currentLevel === "level-5") {
               decompTotal++;
               if (log.is_correct) decompSuccess++;
-            } else if (level.includes("pattern") || log.question_id?.includes("pattern")) {
+            } 
+            // 2. PENGENALAN POLA (Mencari kesamaan/tren)
+            // Cocok untuk Level 1 (Pola & Algoritma) & Level 3 (Rute & Kriptografi)
+            else if (currentLevel === "level-1" || currentLevel === "level-3") {
               patternTotal++;
               if (log.is_correct) patternSuccess++;
-            } else {
+            } 
+            // 3. LOGIKA ALGORITMA (Langkah demi langkah)
+            // Cocok untuk Level 4 (Simulasi & Jejak) atau level lainnya
+            else {
               algoTotal++;
               if (log.is_correct) algoSuccess++;
             }
@@ -315,9 +325,12 @@ export default function AnalyticsPage() {
             </div>
             <span className="text-[10px] font-black tracking-widest uppercase text-emerald-600 bg-emerald-100 px-3 py-1.5 rounded-full animate-pulse border border-emerald-200">Live Sync</span>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 text-slate-500 border-b border-slate-100 uppercase tracking-wider text-[10px]">
+          
+          {/* Menambahkan max-h-[500px] dan overflow-y-auto agar tabel bisa di-scroll secara internal */}
+          <div className="overflow-x-auto overflow-y-auto max-h-[500px]">
+            <table className="w-full text-left text-sm relative">
+              {/* Menambahkan sticky top-0 agar header tabel tidak ikut tergulung */}
+              <thead className="bg-slate-50 text-slate-500 border-b border-slate-100 uppercase tracking-wider text-[10px] sticky top-0 shadow-sm z-10">
                 <tr>
                   <th className="px-6 py-4 font-black">Identitas / Waktu</th>
                   <th className="px-6 py-4 font-black">Quest Level</th>
@@ -340,7 +353,8 @@ export default function AnalyticsPage() {
                     </td>
                   </tr>
                 ) : (
-                  logs.slice(0, 8).map((log) => (
+                  // Menghapus .slice(0, 8) agar seluruh log ditampilkan
+                  logs.map((log) => (
                     <tr key={log.id} className="hover:bg-sky-50/30 transition-colors">
                       <td className="px-6 py-4">
                         <p className="font-bold text-slate-700">{log.student_name || "Guest User"}</p>

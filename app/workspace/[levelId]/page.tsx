@@ -107,31 +107,43 @@ function AnswerCard({ value, label, imageUrl, selected, disabled, isCorrect, onS
     <button
       onClick={onSelect}
       disabled={disabled}
-      className={`w-full flex items-center gap-3 md:gap-4 p-3 md:p-4 rounded-2xl border-2 text-left transition-all duration-200 group ${getStyle()}`}
+      // 1. Ubah flex-row menjadi flex-col agar gambar bisa diletakkan di bawah teks
+      className={`w-full flex flex-col p-3 md:p-4 rounded-2xl border-2 text-left transition-all duration-200 group ${getStyle()}`}
     >
-      <div
-        className={`w-10 h-10 md:w-11 md:h-11 rounded-xl flex items-center justify-center shrink-0 font-black text-base md:text-lg transition-colors duration-200
-        ${selected && isCorrect === undefined ? "bg-sky-500 text-white" : ""}
-        ${selected && isCorrect ? "bg-emerald-500 text-white" : ""}
-        ${selected && isCorrect === false ? "bg-red-400 text-white" : ""}
-        ${!selected ? "bg-slate-100 text-slate-600 group-hover:bg-sky-100 group-hover:text-sky-600" : ""}`}
-      >
-        {value}
+      {/* 2. Bagian Atas: Label (A/B/C/D), Teks, dan Ikon Status */}
+      <div className="flex items-center gap-3 md:gap-4 w-full">
+        <div
+          className={`w-10 h-10 md:w-11 md:h-11 rounded-xl flex items-center justify-center shrink-0 font-black text-base md:text-lg transition-colors duration-200
+          ${selected && isCorrect === undefined ? "bg-sky-500 text-white" : ""}
+          ${selected && isCorrect ? "bg-emerald-500 text-white" : ""}
+          ${selected && isCorrect === false ? "bg-red-400 text-white" : ""}
+          ${!selected ? "bg-slate-100 text-slate-600 group-hover:bg-sky-100 group-hover:text-sky-600" : ""}`}
+        >
+          {value}
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <span className="font-semibold text-sm text-slate-700 block truncate">{label}</span>
+        </div>
+
+        {selected && isCorrect === true && <CheckCircleIcon className="w-6 h-6 text-emerald-500 shrink-0" />}
+        {selected && isCorrect === false && <XCircleIcon className="w-6 h-6 text-red-400 shrink-0" />}
       </div>
 
-      <div className="flex-1 flex flex-col justify-center min-w-0">
-        <span className="font-semibold text-sm text-slate-700">{label}</span>
-        {imageUrl && (
-          <img src={imageUrl} alt={label} className="mt-2 w-auto max-h-16 md:max-h-20 object-contain rounded-md border border-slate-100" />
-        )}
-      </div>
-
-      {selected && isCorrect === true && <CheckCircleIcon className="w-5 h-5 text-emerald-500 shrink-0" />}
-      {selected && isCorrect === false && <XCircleIcon className="w-5 h-5 text-red-400 shrink-0" />}
+      {/* 3. Bagian Bawah: Gambar (Jika ada) dibuat LEBIH BESAR (h-32 atau h-40) */}
+      {imageUrl && (
+        <div className="w-full mt-3 bg-white/50 rounded-xl p-3 border border-slate-100/50 flex items-center justify-center">
+          <img 
+            src={imageUrl} 
+            alt={label} 
+            // object-contain menjaga rasio gambar agar tidak gepeng
+            className="w-full h-32 md:h-40 object-contain drop-shadow-sm" 
+          />
+        </div>
+      )}
     </button>
   );
 }
-
 // ================= SCAFFOLD IDLE =================
 
 function ScaffoldingIdle() {
@@ -404,25 +416,34 @@ export default function WorkspacePage() {
                  <p className="text-slate-600 font-medium text-base leading-relaxed mb-6">{activeQuestion.questionSubtext}</p>
               )}
 
-              {/* GAMBAR SOAL DIBATASI TINGGINYA AGAR TIDAK MEMAKAN RUANG */}
-              {activeQuestion.imageUrl && (
-                <div className="mt-4 mb-6 rounded-2xl overflow-hidden border-2 border-slate-100 bg-slate-50 flex items-center justify-center p-4">
-                  <img src={activeQuestion.imageUrl} alt="Ilustrasi Soal" className="max-h-[25vh] object-contain rounded-lg drop-shadow-sm" />
-                </div>
-              )}
+              {/* GAMBAR SOAL: MENDUKUNG 1 ATAU 2 KOTAK GAMBAR */}
+              {(activeQuestion.imageUrl || activeQuestion.imageUrl2) && (
+                // Jika ada 2 gambar, gunakan 2 kolom (md:grid-cols-2) agar bersebelahan dan menghemat scroll
+                <div className={`mt-4 mb-6 grid gap-4 ${activeQuestion.imageUrl2 ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
+                  
+                  {/* Kotak Gambar 1 */}
+                  {activeQuestion.imageUrl && (
+                    <div className="rounded-2xl overflow-hidden border-2 border-slate-100 bg-slate-50 flex items-center justify-center p-4">
+                      {/* max-h ditingkatkan ke 40vh (sekitar 40% layar) agar lebih besar, w-full agar proporsional */}
+                      <img 
+                        src={activeQuestion.imageUrl} 
+                        alt="Ilustrasi Soal Utama" 
+                        className="max-h-[35vh] md:max-h-[40vh] w-full object-contain rounded-lg drop-shadow-sm" 
+                      />
+                    </div>
+                  )}
 
-              {!activeQuestion.imageUrl && (
-                activeQuestion.imageSvg ? (
-                  <div className="mt-4 mb-6 p-6 bg-white rounded-3xl border-2 border-slate-100 shadow-inner flex items-center justify-center">
-                    {activeQuestion.imageSvg}
-                  </div>
-                ) : (
-                  <div className="mt-4 mb-6 p-6 bg-slate-50 rounded-3xl border-2 border-slate-100 shadow-inner flex items-center justify-center gap-3 flex-wrap">
-                    {Array.from({ length: activeQuestion.totalItems || 0 }).map((_, i) => (
-                      <ItemIcon key={i} className="w-10 h-10" />
-                    ))}
-                  </div>
-                )
+                  {/* Kotak Gambar 2 (Jika disediakan di levelsData.ts) */}
+                  {activeQuestion.imageUrl2 && (
+                    <div className="rounded-2xl overflow-hidden border-2 border-slate-100 bg-slate-50 flex items-center justify-center p-4">
+                      <img 
+                        src={activeQuestion.imageUrl2} 
+                        alt="Ilustrasi Soal Tambahan" 
+                        className="max-h-[35vh] md:max-h-[40vh] w-full object-contain rounded-lg drop-shadow-sm" 
+                      />
+                    </div>
+                  )}
+                </div>
               )}
 
               {/* AREA JAWABAN */}

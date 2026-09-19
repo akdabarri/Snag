@@ -4,6 +4,7 @@ import { Nunito } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import { cn } from "@/lib/utils";
+import GlobalAudioPlayer from "@/components/GlobalAudioPlayer"; 
 
 // ─── Konfigurasi Font Ramah Anak ──────────────────────────────────────────────
 // Menggunakan Nunito yang memiliki karakteristik bulat, hangat, dan sangat 
@@ -73,6 +74,7 @@ export default function RootLayout({
         )}
       >
         {children}
+        <GlobalAudioPlayer />
       </body>
     </html>
   );
