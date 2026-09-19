@@ -3,36 +3,77 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { supabase } from "@/lib/supabase";
 
 export default function ProfilPage() {
   const [isAuth, setIsAuth] = useState(false);
+  const [userId, setUserId] = useState("");
   const [studentName, setStudentName] = useState("");
   const [studentInitial, setStudentInitial] = useState("");
   const [avatarImage, setAvatarImage] = useState("");
-  const [coins, setCoins] = useState(150);
+  
+  // ─── FIX 1: Nilai awal diubah dari 150 menjadi 0 ───
+  const [coins, setCoins] = useState(0); 
   const [hearts, setHearts] = useState(5);
   const [completedLevels, setCompletedLevels] = useState<string[]>([]);
   const [regenTimeLeft, setRegenTimeLeft] = useState<number | null>(null);
-
-  // State untuk Splash Screen
+  
+  const [ownedAvatars, setOwnedAvatars] = useState<string[]>([]);
   const [showSplash, setShowSplash] = useState(true);
   const [splashOpacity, setSplashOpacity] = useState("opacity-100");
 
   useEffect(() => {
-    if (!localStorage.getItem("snag_user_id")) { window.location.replace("/auth"); return; }
+    const uid = localStorage.getItem("snag_user_id");
+    if (!uid) { window.location.replace("/"); return; } 
+    
     setIsAuth(true);
+    setUserId(uid);
 
     const firstName = (localStorage.getItem("snag_user_name") || "Ksatria").split(" ")[0];
     setStudentName(firstName);
     setStudentInitial(firstName.charAt(0).toUpperCase());
-    setAvatarImage(localStorage.getItem("snag_avatar_image") || "");
-    setCoins(parseInt(localStorage.getItem("snag_student_coins") || "150"));
-    setHearts(parseInt(localStorage.getItem("snag_student_hearts") || "5"));
     
+    // Set state awal dari memori lokal untuk menghindari kedipan 150
+    setCoins(parseInt(localStorage.getItem("snag_student_coins") || "0"));
+    
+    // ─── FIX 2: SINKRONISASI KETAT DENGAN DATABASE (SUPABASE) ───
+    const fetchUserData = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("students") 
+          // Pastikan mengambil current_hearts sesuai nama kolom di database Anda
+          .select("avatar_image, owned_avatars, coins, current_hearts")
+          .eq("id", uid)
+          .single();
+
+        if (data) {
+          const dbAvatar = data.avatar_image || "";
+          const dbOwned = data.owned_avatars || (dbAvatar ? [dbAvatar] : []);
+          const dbCoins = data.coins ?? 0; // Jika di DB null, maka koin = 0
+          const dbHearts = data.current_hearts ?? 5; // Nyawa bawaan 5
+
+          // 1. Perbarui tampilan UI
+          setAvatarImage(dbAvatar);
+          setOwnedAvatars(dbOwned);
+          setCoins(dbCoins);
+          setHearts(dbHearts);
+
+          // 2. Timpa memori lokal dengan data asli dari Database agar Beranda juga sinkron!
+          localStorage.setItem("snag_avatar_image", dbAvatar);
+          localStorage.setItem("snag_owned_avatars", JSON.stringify(dbOwned));
+          localStorage.setItem("snag_student_coins", dbCoins.toString());
+          localStorage.setItem("snag_student_hearts", dbHearts.toString());
+        }
+      } catch (err) {
+        console.error("Gagal menarik data profil dari database", err);
+      }
+    };
+    
+    fetchUserData();
+
     const savedProgress = localStorage.getItem("snag_completed_levels");
     if (savedProgress) setCompletedLevels(JSON.parse(savedProgress));
 
-    // Logika animasi Splash Screen
     setTimeout(() => {
         setSplashOpacity("opacity-0");
         setTimeout(() => setShowSplash(false), 300);
@@ -53,29 +94,74 @@ export default function ProfilPage() {
           const newHearts = Math.min(5, currentStoredHearts + 1);
           setHearts(newHearts);
           localStorage.setItem("snag_student_hearts", newHearts.toString());
+          
+          // Opsional: Sinkronkan regenerasi nyawa ke DB (bisa dihilangkan jika terlalu membebani server)
+          supabase.from("students").update({ current_hearts: newHearts }).eq("id", userId);
+
           if (newHearts < 5) localStorage.setItem("snag_regen_start", Date.now().toString());
           else { localStorage.removeItem("snag_regen_start"); setRegenTimeLeft(null); }
         } else setRegenTimeLeft(Math.ceil((REGEN_MS - elapsed) / 1000));
       } else { localStorage.removeItem("snag_regen_start"); setRegenTimeLeft(null); }
     }, 1000);
     return () => clearInterval(interval);
-  }, [isAuth]);
+  }, [isAuth, userId]);
 
-  const buyHeart = () => {
+  // Fungsi beli nyawa (Update ke Database)
+  const buyHeart = async () => {
     if (coins >= 20 && hearts < 5) {
-      const newCoins = coins - 20; const newHearts = hearts + 1;
-      setCoins(newCoins); setHearts(newHearts);
+      const newCoins = coins - 20; 
+      const newHearts = hearts + 1;
+      setCoins(newCoins); 
+      setHearts(newHearts);
+      
       localStorage.setItem("snag_student_coins", newCoins.toString());
       localStorage.setItem("snag_student_hearts", newHearts.toString());
       if (newHearts === 5) localStorage.removeItem("snag_regen_start");
+
+      // ─── FIX 3: Push data nyawa ke current_hearts ───
+      await supabase.from("students").update({ coins: newCoins, current_hearts: newHearts }).eq("id", userId);
     }
   };
 
-  const buyAvatarImage = (imagePath: string, cost: number) => {
-    if (coins >= cost && avatarImage !== imagePath) {
-      const newCoins = coins - cost; setCoins(newCoins); setAvatarImage(imagePath);
-      localStorage.setItem("snag_student_coins", newCoins.toString());
-      localStorage.setItem("snag_avatar_image", imagePath);
+  // Fungsi Beli/Pakai Avatar (Update ke Database)
+  const handleAvatarClick = async (imagePath: string, cost: number) => {
+    if (avatarImage === imagePath) return;
+
+    let newCoins = coins;
+    let newOwned = [...ownedAvatars];
+
+    if (!ownedAvatars.includes(imagePath)) {
+      if (coins < cost) {
+        alert("Koin emasmu belum cukup untuk membeli avatar ini!");
+        return;
+      }
+      newCoins = coins - cost;
+      newOwned.push(imagePath);
+    }
+
+    setCoins(newCoins); 
+    setAvatarImage(imagePath);
+    setOwnedAvatars(newOwned);
+    
+    // Perbarui lokal dan Database
+    localStorage.setItem("snag_student_coins", newCoins.toString());
+    await supabase.from("students").update({
+      avatar_image: imagePath,
+      owned_avatars: newOwned,
+      coins: newCoins
+    }).eq("id", userId);
+  };
+
+  // LOGOUT
+  const handleLogout = () => {
+    if (window.confirm("Apakah kamu yakin ingin keluar dari akun ini?")) {
+      localStorage.removeItem("snag_user_id");
+      localStorage.removeItem("snag_user_name");
+      localStorage.removeItem("snag_avatar_image");
+      localStorage.removeItem("snag_student_coins");
+      localStorage.removeItem("snag_owned_avatars");
+      
+      window.location.replace("/");
     }
   };
 
@@ -94,32 +180,39 @@ export default function ProfilPage() {
            </div>
        )}
 
-       {/* ── HEADER (Sama Persis dengan Beranda & Petualangan) ── */}
+       {/* ── HEADER ── */}
        <header className="w-full h-[12vh] flex justify-between items-center px-[4vw] pt-[2vh] z-40 shrink-0 pointer-events-none">
-          
           <div className="h-[10vh] md:h-[12vh] aspect-square pointer-events-auto bg-white/70 backdrop-blur-md rounded-full border-[3px] border-white drop-shadow-xl flex items-center justify-center overflow-hidden scale-110 origin-top-left">
               <img src="/images/1.png" alt="Logo SNAG" className="w-[120%] h-[120%] object-contain drop-shadow-md" />
           </div>
           
           <div className="flex items-center gap-[2.5vw] h-[65%] md:h-[75%] pointer-events-auto mt-[1vh]">
-             
-             
-             
-             {/* Avatar Profil */}
              <div className="h-full aspect-square bg-slate-100 rounded-full border-[3px] border-white drop-shadow-xl flex items-center justify-center overflow-hidden shrink-0">
                  {avatarImage ? <img src={avatarImage} alt="Avatar" className="w-full h-full object-cover scale-125" /> : <span className="text-[2.5vh] font-black text-slate-400">{studentInitial}</span>}
              </div>
           </div>
        </header>
 
-       {/* KONTEN PROFIL (Dipertahankan Persis Sesuai Kode Anda) */}
+       {/* KONTEN PROFIL */}
        <main className="flex-1 w-full flex items-center justify-center px-[2vw] md:px-[4vw] z-10 min-h-0 pt-[2vh] pb-[1vh]">
-          
           <div className="w-full max-w-[950px] h-[68vh] bg-[#C18145] rounded-[3.5vh] border-[1vh] border-[#8B5A33] drop-shadow-2xl flex flex-row p-[2vh] gap-[2vh] relative">
               
               {/* PANEL KIRI (Profil & Stat) */}
               <div className="w-[42%] bg-[#FFF5D1] rounded-[2.5vh] border-[0.5vh] border-[#EBD0A0] flex flex-col items-center justify-center py-[2vh] px-[2vh] relative shadow-inner">
                   <div className="absolute top-[-1vh] left-[15%] w-[4vh] h-[6vh] bg-sky-500/70 rounded-md rotate-[-15deg] shadow-sm"></div>
+
+                  {/* TOMBOL LOGOUT FIX */}
+                  <button 
+                      onClick={handleLogout}
+                      className="absolute top-[1.5vh] right-[1.5vh] bg-rose-100 hover:bg-rose-500 text-rose-600 hover:text-white p-[1vh] rounded-xl transition-all shadow-sm group"
+                      title="Keluar / Logout"
+                  >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" className="w-[2.5vh] h-[2.5vh] stroke-2 strokeLinecap-round strokeLinejoin-round">
+                          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                          <polyline points="16 17 21 12 16 7"></polyline>
+                          <line x1="21" y1="12" x2="9" y2="12"></line>
+                      </svg>
+                  </button>
 
                   <div className="w-[18vh] aspect-square rounded-full border-[0.6vh] border-white ring-[0.4vh] ring-sky-200 bg-sky-100 flex items-center justify-center shadow-lg overflow-hidden shrink-0 mt-[2vh]">
                       {avatarImage ? <img src={avatarImage} alt="Avatar" className="w-full h-full object-cover scale-125" /> : <span className="text-[7vh] font-black text-slate-400">{studentInitial}</span>}
@@ -196,23 +289,44 @@ export default function ProfilPage() {
                       </h3>
                       
                       <div className="flex-1 grid grid-cols-4 gap-[2vh] mt-[1.5vh] min-h-0 pb-[0.5vh]">
-                          {[1, 2, 3, 4].map((num) => (
-                              <button key={num} onClick={() => buyAvatarImage(`/images/avatar-${num}.webp`, 50)} className={`w-full h-full rounded-[2vh] border-[0.5vh] transition-all overflow-hidden relative group shadow-sm flex items-center justify-center ${avatarImage === `/images/avatar-${num}.webp` ? 'border-emerald-400 bg-emerald-100/50' : 'border-[#EBD0A0] bg-[#FEF9E7] hover:border-[#8B5A33]/50'}`}>
-                                  <img src={`/images/avatar-${num}.webp`} alt={`Avatar ${num}`} className="w-[75%] h-auto object-contain transition-transform group-hover:scale-110" onError={(e) => { e.currentTarget.src = "/images/1.png"; }} />
-                                  
-                                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-[1px]">
-                                      <span className="text-white font-black text-[2vh] bg-black/60 px-[1.5vh] py-[0.3vh] rounded-full flex items-center gap-[0.5vh]">
-                                          <img src="/images/icon-coin.webp" className="h-[2vh] w-auto"/> 50
-                                      </span>
-                                  </div>
-                                  
-                                  {avatarImage === `/images/avatar-${num}.webp` && (
-                                      <div className="absolute top-[0.8vh] right-[0.8vh] bg-emerald-500 rounded-full p-[0.4vh] shadow-sm">
-                                          <svg viewBox="0 0 24 24" fill="none" stroke="white" className="w-[2vh] h-[2vh] stroke-[4px]"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                                      </div>
-                                  )}
-                              </button>
-                          ))}
+                          {[1, 2, 3, 4].map((num) => {
+                              const imgPath = `/images/avatar-${num}.webp`;
+                              const isEquipped = avatarImage === imgPath;
+                              const isOwned = ownedAvatars.includes(imgPath);
+                              
+                              return (
+                                <button 
+                                  key={num} 
+                                  onClick={() => handleAvatarClick(imgPath, 50)} 
+                                  className={`w-full h-full rounded-[2vh] border-[0.5vh] transition-all overflow-hidden relative group shadow-sm flex items-center justify-center 
+                                  ${isEquipped ? 'border-emerald-400 bg-emerald-100/50' : 'border-[#EBD0A0] bg-[#FEF9E7] hover:border-[#8B5A33]/50'}`}
+                                >
+                                    <img src={imgPath} alt={`Avatar ${num}`} className="w-[75%] h-auto object-contain transition-transform group-hover:scale-110" onError={(e) => { e.currentTarget.src = "/images/1.png"; }} />
+                                    
+                                    {!isOwned && (
+                                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-[1px]">
+                                            <span className="text-white font-black text-[2vh] bg-black/60 px-[1.5vh] py-[0.3vh] rounded-full flex items-center gap-[0.5vh]">
+                                                <img src="/images/icon-coin.webp" className="h-[2vh] w-auto"/> 50
+                                            </span>
+                                        </div>
+                                    )}
+
+                                    {isOwned && !isEquipped && (
+                                        <div className="absolute inset-0 bg-white/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <span className="text-emerald-700 font-black text-[1.8vh] bg-emerald-100/90 px-[1.5vh] py-[0.3vh] rounded-full border border-emerald-300">
+                                                Pakai
+                                            </span>
+                                        </div>
+                                    )}
+                                    
+                                    {isEquipped && (
+                                        <div className="absolute top-[0.8vh] right-[0.8vh] bg-emerald-500 rounded-full p-[0.4vh] shadow-sm">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="white" className="w-[2vh] h-[2vh] stroke-[4px]"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                                        </div>
+                                    )}
+                                </button>
+                              );
+                          })}
                       </div>
                   </div>
 
@@ -220,7 +334,7 @@ export default function ProfilPage() {
           </div>
        </main>
 
-       {/* NAVBAR BAWAH (Profil Glow) */}
+       {/* NAVBAR BAWAH */}
        <div className="w-full flex justify-center shrink-0 z-30 pointer-events-none mb-[2vh]">
            <nav className="relative h-[30vh] inline-block pointer-events-auto">
                <img src="/images/nav-wood.webp" alt="Papan Navigasi" className="h-full w-auto object-contain drop-shadow-[0_-5px_25px_rgba(0,0,0,0.5)]" />
@@ -251,7 +365,6 @@ export default function ProfilPage() {
            </nav>
        </div>
 
-       {/* Style untuk animasi Splash */}
        <style jsx global>{`
            @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
            .animate-fade-in { animation: fade-in 0.3s ease-out forwards; }

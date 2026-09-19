@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
 export default function AuthPage() {
@@ -69,7 +70,6 @@ export default function AuthPage() {
           return;
         }
 
-        // INSERT DISESUAIKAN DENGAN SKEMA TABEL DI image_f1aca9.png (Hanya masukkan kolom yang ada)
         const { error: insertError } = await supabase
           .from("students")
           .insert([
@@ -93,7 +93,7 @@ export default function AuthPage() {
         setFullName("");
 
       } else {
-        // ================== LOGIN ==================
+// ================== LOGIN ==================
         const { data: student, error: loginError } = await supabase
           .from("students")
           .select("*")
@@ -111,16 +111,25 @@ export default function AuthPage() {
         localStorage.setItem("snag_user_id", student.id);
         localStorage.setItem("snag_user_name", student.full_name);
         localStorage.setItem("snag_user_role", isEducatorMode ? "teacher" : "student");
+        
+        // ─── FIX SINKRONISASI DATABASE KE LOKAL ───
         localStorage.setItem("snag_student_hearts", (student.current_hearts ?? 5).toString());
+        localStorage.setItem("snag_student_coins", (student.coins ?? 0).toString()); // 👈 Tarik koin dari DB!
+        
+        if (student.avatar_image) {
+          localStorage.setItem("snag_avatar_image", student.avatar_image);
+        }
+        if (student.owned_avatars) {
+          localStorage.setItem("snag_owned_avatars", JSON.stringify(student.owned_avatars));
+        }
 
         setMessage({ text: "Koneksi sukses! Menyiapkan ruang belajarmu...", isError: false });
-        
-        // SMART ROUTING (Mengecek current_unit sesuai skema image_f1aca9.png)
+                
+        // SMART ROUTING
         setTimeout(() => {
           if (isEducatorMode) {
             router.replace("/analytics"); 
           } else {
-            // Jika current_unit di database masih kosong/null, berarti dia pemain baru
             const isNewPlayer = !student.current_unit || student.current_unit === 0;
             if (isNewPlayer) {
               router.replace("/introduction"); 
@@ -139,9 +148,26 @@ export default function AuthPage() {
   };
 
   return (
-    <div className={`min-h-screen flex flex-col items-center justify-center p-4 font-sans selection:bg-sky-200 transition-colors duration-500 ${isEducatorMode ? 'bg-slate-900 text-slate-100 selection:text-slate-900' : 'bg-slate-50 selection:text-sky-900'}`}>
+    <div className={`relative min-h-[100dvh] w-screen flex flex-col items-center justify-center p-4 font-sans selection:bg-sky-200 transition-colors duration-500 overflow-hidden before:absolute before:inset-0 before:-z-10 before:bg-[url('/images/bg-forest.webp')] before:bg-cover before:bg-center before:-scale-x-100 ${isEducatorMode ? 'text-slate-100 selection:text-slate-900 before:brightness-50' : 'text-slate-900 selection:text-sky-900'}`}>
       
-      <div className={`p-8 rounded-3xl border-2 shadow-xl max-w-md w-full text-center space-y-6 animate-in fade-in zoom-in-95 duration-300 relative overflow-hidden transition-all ${isEducatorMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
+      {/* Tombol Back ke Beranda (Luar) */}
+      <div className="absolute top-6 left-6 md:top-8 md:left-8 z-50">
+        <Link 
+          href="/" 
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-black transition-colors shadow-md border-[3px] drop-shadow-sm ${
+            isEducatorMode 
+              ? 'bg-slate-800/90 backdrop-blur-md text-slate-300 border-slate-600 hover:bg-slate-700 hover:text-white' 
+              : 'bg-white/90 backdrop-blur-md text-slate-700 border-white hover:bg-sky-100 hover:text-sky-700'
+          }`}
+        >
+          <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5">
+             <path d="M19 12H5M12 5l-7 7 7 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          Kembali
+        </Link>
+      </div>
+
+      <div className={`p-8 rounded-[2.5rem] border-4 shadow-2xl max-w-md w-full text-center space-y-6 animate-in fade-in zoom-in-95 duration-300 relative z-10 transition-all ${isEducatorMode ? 'bg-slate-800/95 backdrop-blur-md border-slate-700' : 'bg-white/95 backdrop-blur-md border-white'}`}>
         
         <div className={`absolute -top-24 -right-24 w-48 h-48 rounded-full blur-3xl pointer-events-none transition-colors ${isEducatorMode ? 'bg-sky-900/40' : 'bg-sky-50'}`} />
         <div className={`absolute -bottom-24 -left-24 w-48 h-48 rounded-full blur-3xl pointer-events-none transition-colors ${isEducatorMode ? 'bg-emerald-900/40' : 'bg-emerald-50'}`} />

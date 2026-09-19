@@ -8,17 +8,49 @@ export default function GlobalAudioPlayer() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [mounted, setMounted] = useState(false);
 
+  // ========================================================
+  // 1. RADAR SFX GLOBAL (Suara Klik untuk Semua Tombol/Link)
+  // ========================================================
+  useEffect(() => {
+    const handleGlobalClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      
+      // Deteksi apakah elemen yang diklik adalah tombol, tautan (a), atau memiliki role="button"
+      const isClickable = target.closest("button") || target.closest("a") || target.closest('[role="button"]');
+      
+      if (isClickable) {
+        try {
+          const clickSound = new Audio("/audio/click.mp3");
+          clickSound.volume = 0.5; // Volume diset 50% agar kliknya lembut dan tidak memekakkan telinga
+          clickSound.play().catch(() => { 
+            // Abaikan error diam-diam jika browser memblokir sebelum ada interaksi valid
+          });
+        } catch (error) {
+          console.warn("Gagal memutar SFX Klik", error);
+        }
+      }
+    };
+
+    // Pasang radar ke seluruh halaman web
+    document.addEventListener("click", handleGlobalClick);
+    
+    // Bersihkan radar saat komponen tidak aktif (mencegah memory leak)
+    return () => {
+      document.removeEventListener("click", handleGlobalClick);
+    };
+  }, []);
+
+  // ========================================================
+  // 2. LOGIKA MUSIK LATAR (BGM)
+  // ========================================================
   useEffect(() => {
     setMounted(true);
     
-    // Cek preferensi saat web pertama kali dimuat
     const savedMusicState = localStorage.getItem("snag_music_playing");
     if (savedMusicState === "true") {
       setIsPlaying(true);
-      // Coba putar otomatis jika sebelumnya menyala
       if (audioRef.current) {
         audioRef.current.play().catch(() => {
-          // Jika browser memblokir putaran otomatis saat web di-refresh, matikan statusnya
           setIsPlaying(false);
           localStorage.setItem("snag_music_playing", "false");
         });
@@ -26,7 +58,6 @@ export default function GlobalAudioPlayer() {
     }
   }, []);
 
-  // Logika play/pause dipindah LANGSUNG ke dalam klik tombol
   const togglePlay = () => {
     if (!audioRef.current) return;
 
@@ -35,7 +66,6 @@ export default function GlobalAudioPlayer() {
       setIsPlaying(false);
       localStorage.setItem("snag_music_playing", "false");
     } else {
-      // Browser memberikan izin penuh jika diputar dari event onClick
       audioRef.current.play()
         .then(() => {
           setIsPlaying(true);
@@ -53,7 +83,6 @@ export default function GlobalAudioPlayer() {
 
   return (
     <>
-      {/* Pastikan file public/audio/bgm.mp3 benar-benar ada! */}
       <audio ref={audioRef} src="/audio/bgm.mp3" loop preload="auto" />
 
       <button

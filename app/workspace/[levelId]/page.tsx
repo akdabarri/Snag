@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
 import { useLearningAnalytics } from "@/hooks/useLearningAnalytics";
 import { LEVELS_DATA } from "@/data/levelsData";
+import { supabase } from "@/lib/supabase";
 
 // ================= ICONS =================
 
@@ -107,10 +108,8 @@ function AnswerCard({ value, label, imageUrl, selected, disabled, isCorrect, onS
     <button
       onClick={onSelect}
       disabled={disabled}
-      // 1. Ubah flex-row menjadi flex-col agar gambar bisa diletakkan di bawah teks
       className={`w-full flex flex-col p-3 md:p-4 rounded-2xl border-2 text-left transition-all duration-200 group ${getStyle()}`}
     >
-      {/* 2. Bagian Atas: Label (A/B/C/D), Teks, dan Ikon Status */}
       <div className="flex items-center gap-3 md:gap-4 w-full">
         <div
           className={`w-10 h-10 md:w-11 md:h-11 rounded-xl flex items-center justify-center shrink-0 font-black text-base md:text-lg transition-colors duration-200
@@ -130,20 +129,15 @@ function AnswerCard({ value, label, imageUrl, selected, disabled, isCorrect, onS
         {selected && isCorrect === false && <XCircleIcon className="w-6 h-6 text-red-400 shrink-0" />}
       </div>
 
-      {/* 3. Bagian Bawah: Gambar (Jika ada) dibuat LEBIH BESAR (h-32 atau h-40) */}
       {imageUrl && (
         <div className="w-full mt-3 bg-white/50 rounded-xl p-3 border border-slate-100/50 flex items-center justify-center">
-          <img 
-            src={imageUrl} 
-            alt={label} 
-            // object-contain menjaga rasio gambar agar tidak gepeng
-            className="w-full h-32 md:h-40 object-contain drop-shadow-sm" 
-          />
+          <img src={imageUrl} alt={label} className="w-full h-32 md:h-40 object-contain drop-shadow-sm" />
         </div>
       )}
     </button>
   );
 }
+
 // ================= SCAFFOLD IDLE =================
 
 function ScaffoldingIdle() {
@@ -210,6 +204,16 @@ export default function WorkspacePage() {
     if (savedHearts) setHearts(parseInt(savedHearts));
   }, []);
 
+  // ================= FUNGSI PEMUTAR SUARA UNTUK VALIDASI =================
+  const playSound = useCallback((type: "correct" | "wrong") => {
+    try {
+      const audio = new Audio(`/audio/${type}.mp3`);
+      audio.play().catch(() => { /* Abaikan error jika browser memblokir */ });
+    } catch (error) {
+      console.warn("Audio tidak dapat dimainkan", error);
+    }
+  }, []);
+
   const activeQuestion = levelData?.questions?.[currentQuestionIndex];
 
   const {
@@ -252,13 +256,35 @@ export default function WorkspacePage() {
     if (selectedAnswer === null) return;
     const isCorrect = selectedAnswer === activeQuestion.correctAnswer;
     setCheckResult(isCorrect);
+    
+    // SFX Validasi Jawaban (Tetap dipertahankan karena ini bukan sekadar klik biasa)
+    if (isCorrect) {
+      playSound("correct");
+    } else {
+      playSound("wrong");
+    }
+
     await flushToSupabase(isCorrect);
 
-    if (isCorrect) {
+if (isCorrect) {
       // --- SISTEM HADIAH KOIN (+10 KOIN) ---
-      const currentCoins = parseInt(localStorage.getItem("snag_student_coins") || "150");
+      // 1. Ubah angka 150 menjadi 0 agar tidak ada koin siluman
+      const currentCoins = parseInt(localStorage.getItem("snag_student_coins") || "0");
       const newCoins = currentCoins + 10;
+      
+      // 2. Simpan ke lokal agar UI langsung berubah
       localStorage.setItem("snag_student_coins", newCoins.toString());
+      
+      // 3. 🚀 KIRIM LANGSUNG KE SUPABASE!
+      if (activeStudentId !== "00000000-0000-0000-0000-000000000000") {
+        supabase
+          .from("students")
+          .update({ coins: newCoins })
+          .eq("id", activeStudentId)
+          .then(({ error }) => {
+            if (error) console.error("Gagal menabung koin ke Supabase:", error);
+          });
+      }
       // ------------------------------------
 
       const isLastQuestion = currentQuestionIndex === levelData.questions.length - 1;
@@ -317,7 +343,7 @@ export default function WorkspacePage() {
         }
       }
     }
-  }, [selectedAnswer, activeQuestion, currentQuestionIndex, levelData.questions.length, currentLevelId, flushToSupabase, router]);
+  }, [selectedAnswer, activeQuestion, currentQuestionIndex, levelData.questions.length, currentLevelId, flushToSupabase, router, playSound]);
 
   // ================= HINT =================
 
@@ -352,7 +378,6 @@ export default function WorkspacePage() {
   };
 
   return (
-    /* KUNCI MUTLAK LAYAR (fixed inset-0) AGAR TIDAK BISA SCROLL LUAR. LAYAR TERKUNCI 100% */
     <div className="fixed inset-0 flex flex-col items-center justify-start overflow-hidden font-sans selection:bg-sky-200 before:absolute before:inset-0 before:-z-10 before:bg-[url('/images/quiz.webp')] before:bg-cover before:bg-center animate-[fade-in_0.3s_ease_out_forwards]">
       
       {/* SCREEN SELEBRASI SUKSES */}
@@ -372,7 +397,7 @@ export default function WorkspacePage() {
         </div>
       )}
 
-      {/* HEADER KUIS (TINGGI TETAP, TIDAK MENYUSUT) */}
+      {/* HEADER KUIS */}
       <header className="w-full bg-white/90 backdrop-blur-md shadow-sm animate-[slideInDown_0.4s_ease] shrink-0 z-30">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between gap-3">
           <Link href="/petualangan" className="flex items-center gap-1.5 text-slate-600 hover:text-sky-600 transition-colors font-bold bg-slate-100 hover:bg-sky-50 px-3 py-1.5 rounded-full shrink-0">
@@ -385,9 +410,19 @@ export default function WorkspacePage() {
              <span className="text-sm font-black text-slate-700 truncate">Misi {currentQuestionIndex + 1} dari {levelData.questions.length}</span>
           </div>
 
-          <div className="flex items-center gap-1 bg-rose-50 px-3 py-1.5 rounded-full border border-rose-100 shrink-0">
-             <img src="/images/icon-heart.webp" alt="Nyawa" className="h-5 w-auto" />
-             <span className="font-black text-rose-600">{hearts}</span>
+          <div className="flex items-center gap-3 shrink-0">
+             <div className="flex items-center gap-1 bg-rose-50 px-3 py-1.5 rounded-full border border-rose-100 shrink-0">
+                <img src="/images/icon-heart.webp" alt="Nyawa" className="h-5 w-auto" />
+                <span className="font-black text-rose-600">{hearts}</span>
+             </div>
+             {/* MENU UTAMA BUTTON */}
+             <Link 
+               href="/beranda" 
+               className="p-1.5 bg-slate-100 hover:bg-sky-100 rounded-full transition-colors border border-slate-200 hover:border-sky-300 flex items-center justify-center"
+               title="Ke Menu Utama"
+             >
+               <img src="/images/icon-home.webp" alt="Beranda" className="w-5 h-5 object-contain" />
+             </Link>
           </div>
         </div>
         <div className="w-full bg-slate-200/50 h-1.5 overflow-hidden">
@@ -395,16 +430,13 @@ export default function WorkspacePage() {
         </div>
       </header>
 
-      {/* MAIN KONTEN (MEMENUHI SISA LAYAR, CARD DIKUNCI H-FULL DENGAN INTERNAL SCROLL) */}
+      {/* MAIN KONTEN */}
       <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-4 md:py-6 overflow-hidden flex flex-col z-10 relative">
         <div className="flex flex-col lg:flex-row gap-4 md:gap-6 justify-center items-center lg:items-stretch w-full h-full overflow-hidden">
           
-          {/* ========================================================= */}
-          {/* AREA KIRI: SOAL & JAWABAN (KARTU DIKUNCI H-FULL, INNER SCROLL) */}
-          {/* ========================================================= */}
+          {/* AREA KIRI: SOAL & JAWABAN */}
           <div className={`transition-all duration-700 flex flex-col h-full bg-white/95 backdrop-blur-md rounded-[2rem] border-[4px] border-white shadow-xl overflow-hidden ${scaffoldingOpen ? "w-full lg:w-[55%]" : "w-full lg:w-[70%] max-w-4xl mx-auto"}`}>
             
-            {/* AREA SCROLL KONTEN DI DALAM KARTU */}
             <div className="flex-1 overflow-y-auto p-5 md:p-8 custom-scrollbar">
               <div className="inline-flex items-center gap-2 bg-amber-100 text-amber-700 border border-amber-200 rounded-xl px-3 py-1.5 mb-4 shadow-sm">
                 <LightbulbIcon className="w-4 h-4" />
@@ -416,34 +448,34 @@ export default function WorkspacePage() {
                  <p className="text-slate-600 font-medium text-base leading-relaxed mb-6">{activeQuestion.questionSubtext}</p>
               )}
 
-              {/* GAMBAR SOAL: MENDUKUNG 1 ATAU 2 KOTAK GAMBAR */}
+              {/* GAMBAR SOAL: MENDUKUNG 1 ATAU 2 KOTAK GAMBAR BERSEBELAHAN */}
               {(activeQuestion.imageUrl || activeQuestion.imageUrl2) && (
-                // Jika ada 2 gambar, gunakan 2 kolom (md:grid-cols-2) agar bersebelahan dan menghemat scroll
                 <div className={`mt-4 mb-6 grid gap-4 ${activeQuestion.imageUrl2 ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
-                  
-                  {/* Kotak Gambar 1 */}
                   {activeQuestion.imageUrl && (
                     <div className="rounded-2xl overflow-hidden border-2 border-slate-100 bg-slate-50 flex items-center justify-center p-4">
-                      {/* max-h ditingkatkan ke 40vh (sekitar 40% layar) agar lebih besar, w-full agar proporsional */}
-                      <img 
-                        src={activeQuestion.imageUrl} 
-                        alt="Ilustrasi Soal Utama" 
-                        className="max-h-[35vh] md:max-h-[40vh] w-full object-contain rounded-lg drop-shadow-sm" 
-                      />
+                      <img src={activeQuestion.imageUrl} alt="Ilustrasi Soal Utama" className="max-h-[35vh] md:max-h-[40vh] w-full object-contain rounded-lg drop-shadow-sm" />
                     </div>
                   )}
-
-                  {/* Kotak Gambar 2 (Jika disediakan di levelsData.ts) */}
                   {activeQuestion.imageUrl2 && (
                     <div className="rounded-2xl overflow-hidden border-2 border-slate-100 bg-slate-50 flex items-center justify-center p-4">
-                      <img 
-                        src={activeQuestion.imageUrl2} 
-                        alt="Ilustrasi Soal Tambahan" 
-                        className="max-h-[35vh] md:max-h-[40vh] w-full object-contain rounded-lg drop-shadow-sm" 
-                      />
+                      <img src={activeQuestion.imageUrl2} alt="Ilustrasi Soal Tambahan" className="max-h-[35vh] md:max-h-[40vh] w-full object-contain rounded-lg drop-shadow-sm" />
                     </div>
                   )}
                 </div>
+              )}
+
+              {!activeQuestion.imageUrl && !activeQuestion.imageUrl2 && (
+                activeQuestion.imageSvg ? (
+                  <div className="mt-4 mb-6 p-6 bg-white rounded-3xl border-2 border-slate-100 shadow-inner flex items-center justify-center">
+                    {activeQuestion.imageSvg}
+                  </div>
+                ) : (
+                  <div className="mt-4 mb-6 p-6 bg-slate-50 rounded-3xl border-2 border-slate-100 shadow-inner flex items-center justify-center gap-3 flex-wrap">
+                    {Array.from({ length: activeQuestion.totalItems || 0 }).map((_, i) => (
+                      <ItemIcon key={i} className="w-10 h-10" />
+                    ))}
+                  </div>
+                )
               )}
 
               {/* AREA JAWABAN */}
@@ -480,11 +512,33 @@ export default function WorkspacePage() {
               )}
             </div>
 
-            {/* AREA BAWAH: TOMBOL (TETAP DIAM DI BAWAH KARTU, TIDAK IKUT SCROLL) */}
+            {/* AREA BAWAH: TOMBOL */}
             <div className="shrink-0 p-5 md:p-8 pt-4 md:pt-6 bg-white/95 border-t-2 border-slate-100 z-10">
-              <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex flex-col sm:flex-row gap-3 w-full">
+                
+                {/* TOMBOL MUNDUR (KEMBALI KE SOAL SEBELUMNYA) */}
+                {currentQuestionIndex > 0 && (
+                  <button
+                    onClick={() => {
+                      setCurrentQuestionIndex((prev) => prev - 1);
+                      setSelectedAnswer(null);
+                      setCheckResult(null);
+                      setScaffoldingOpen(false);
+                      setShowHintPulse(false);
+                      setAiResponseData(null);
+                    }}
+                    disabled={answeredCorrectly}
+                    className="py-3.5 px-5 rounded-2xl font-black text-slate-500 bg-slate-100 border-b-4 border-slate-300 hover:bg-slate-200 active:border-b-0 active:mt-1 transition-all flex items-center justify-center gap-2"
+                  >
+                    <ArrowLeftIcon className="w-5 h-5" />
+                    Mundur
+                  </button>
+                )}
+
                 <button
-                  onClick={handleCheckAnswer}
+                  onClick={() => {
+                    handleCheckAnswer();
+                  }}
                   disabled={selectedAnswer === null || answeredCorrectly}
                   className={`flex-1 py-3.5 px-6 rounded-2xl font-black text-base transition-all duration-200 ${
                     selectedAnswer !== null && !answeredCorrectly
@@ -511,14 +565,11 @@ export default function WorkspacePage() {
             </div>
           </div>
 
-          {/* ========================================================= */}
-          {/* AREA KANAN: AI SCAFFOLDING (DIKUNCI H-FULL, INNER SCROLL) */}
-          {/* ========================================================= */}
+          {/* AREA KANAN: AI SCAFFOLDING */}
           {(scaffoldingOpen || checkResult === false) && (
             <div className="w-full lg:w-[45%] h-full animate-[slideInRight_0.5s_cubic-bezier(0.22,1,0.36,1)]">
               <div className="bg-white/95 backdrop-blur-md rounded-[2rem] border-[4px] border-amber-200 shadow-xl overflow-hidden h-full flex flex-col">
                 
-                {/* Header AI */}
                 <div className="flex items-center gap-3 px-6 py-4 border-b-4 bg-amber-50 border-amber-100 shrink-0">
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-amber-400 shadow-sm border border-amber-500 shrink-0">
                     <SparkleIcon className="w-6 h-6 text-white" />
@@ -529,7 +580,6 @@ export default function WorkspacePage() {
                   </div>
                 </div>
 
-                {/* Konten AI (Bisa di-scroll) */}
                 <div className="p-6 flex-1 overflow-y-auto custom-scrollbar">
                   {isAiLoading ? (
                     <div className="flex flex-col items-center justify-center h-full gap-4 py-16">
@@ -546,7 +596,6 @@ export default function WorkspacePage() {
                         <h3 className="font-bold text-slate-700 text-sm leading-snug">Mari kita bedah masalah ini bersama!</h3>
                       </div>
 
-                      {/* MEMETAKAN LANGKAH AI */}
                       {aiResponseData.steps && aiResponseData.steps.map((step: any, idx: number) => (
                         <ScaffoldStep 
                           key={idx} 
@@ -559,7 +608,6 @@ export default function WorkspacePage() {
                         </ScaffoldStep>
                       ))}
 
-                      {/* FALLBACK TAMPILAN VISUAL */}
                       {((aiResponseData.visual_groups && aiResponseData.visual_groups.length > 0) || aiResponseData.visual_boxes > 0) && (
                         <ScaffoldStep 
                           number={(aiResponseData.steps?.length || 1) + 1} 
